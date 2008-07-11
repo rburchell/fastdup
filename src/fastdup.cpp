@@ -152,10 +152,6 @@ void DeepCompare(FileReference *first)
 {
 	// Buffer for quick creation of the file's full path
 	char fnbuf[PATH_MAX];
-	size_t fnbpos = strlcpy(fnbuf, first->dir, sizeof(fnbuf));
-	if (fnbuf[fnbpos - 1] != '/')
-		fnbuf[fnbpos++] = '/';
-	size_t fnblen = sizeof(fnbuf) - fnbpos;
 	
 	int fcount = 0;
 	for (FileReference *p = first; p; p = p->next)
@@ -181,7 +177,7 @@ void DeepCompare(FileReference *first)
 	int i = 0, j = 0;
 	for (FileReference *p = first; p; p = p->next, ++i)
 	{
-		strlcpy(fnbuf + fnbpos, p->file, fnblen);
+		PathMerge(fnbuf, sizeof(fnbuf), p->dir, p->file);
 		printf("candidate %d: %s\n", i, fnbuf);
 		
 		rdbuf[i] = rrdbuf + (65535 * i);
