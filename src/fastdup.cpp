@@ -1,4 +1,4 @@
-#include "md5.h"
+#include "util.h"
 #include <cstdio>
 #include <cstring>
 #include <cerrno>
@@ -11,7 +11,7 @@
 #include <map>
 #include <string>
 #include <vector>
-#include <sys/time.h>
+#include <math.h>
 
 struct FileReference
 {
@@ -24,175 +24,7 @@ std::map<off_t,FileReference*> SizeMap;
 std::vector<FileReference*> SizeDups;
 
 void ScanDirectory(const char *path);
-
-double SSTime()
-{
-	struct timeval tv;
-	gettimeofday(&tv, NULL);
-	return (double)tv.tv_sec + (tv.tv_usec / (double)1000000);
-}
-
-double TestCompareByte(int argc, char **argv)
-{
-	int fcount = argc;
-	
-	int ffd[fcount];
-	
-	for (int i = 0; i < argc; i++)
-	{
-		ffd[i] = open(argv[i], O_RDONLY);
-		if (ffd[i] < 0)
-		{
-			printf("Unable to open '%s': %s\n", argv[i], strerror(errno));
-			exit(EXIT_FAILURE);
-		}
-	}
-	
-	double stm = SSTime();
-	char rdbuf[fcount][65535];
-	ssize_t rdbp = 0;
-	bool matchflag[(fcount*(fcount-1))/2];
-	bool omit[fcount];
-	int omitted = 0;
-	int skipcount[fcount];
-	
-	memset(matchflag, true, sizeof(matchflag));
-	memset(omit, 0, sizeof(omit));
-	memset(skipcount, 0, sizeof(skipcount));
-	
-	for (;;)
-	{
-		for (int i = 0; i < fcount; i++)
-		{
-			if (omit[i])
-				continue;
-			
-			skipcount[i] = 0;
-			rdbp = read(ffd[i], rdbuf[i], 65535);
-			
-			if (rdbp < 0)
-			{
-				printf("%d: Read error: %s\n", i, strerror(errno));
-				exit(EXIT_FAILURE);
-			}
-			else if (!rdbp)
-			{
-				// All files are assumed to be equal in size
-				break;
-			}
-		}
-		
-		if (!rdbp)
-			break;
-		
-		for (int i = 0; i < fcount; i++)
-		{
-			if (omit[i])
-				continue;
-			
-			for (int j = i + 1; j < fcount; j++)
-			{
-				if (omit[j])
-					continue;
-				
-				int flagpos = (int)(((fcount-1)*i)-(i*(i/2-0.5))+(j-i)-1);
-				if (!matchflag[flagpos] || memcmp(rdbuf[i], rdbuf[j], rdbp) == 0)
-					continue;
-				
-				matchflag[flagpos] = 0;
-				skipcount[i]++;
-				if (++skipcount[j] == (fcount - 1))
-				{
-					omit[j] = true;
-					omitted++;
-				}
-			}
-			
-			if (skipcount[i] == (fcount - 1))
-			{
-				omit[i] = true;
-				if (++omitted == fcount)
-					goto endscan;
-			}
-		}
-	}
-	
- endscan:
-	int matches = 0;
-	for (int i = 0; i < fcount; i++)
-	{
-		if (omit[i])
-			continue;
-		
-		for (int j = i + 1; j < fcount; j++)
-		{
-			if (omit[j])
-				continue;
-			
-			if (matchflag[(int)(((fcount-1)*i)-(i*(i/2-0.5))+(j-i)-1)])
-				matches++;
-		}
-	}
-	
-	double etm = SSTime();
-	for (int i = 0; i < fcount; i++)
-		close(ffd[i]);
-	return etm - stm;
-}
-
-double TestCompareHash(int argc, char **argv)
-{
-	int fcount = argc;
-	int ffd[fcount];
-	
-	for (int i = 0; i < argc; i++)
-	{
-		ffd[i] = open(argv[i], O_RDONLY);
-		if (ffd[i] < 0)
-		{
-			printf("Unable to open '%s': %s\n", argv[i], strerror(errno));
-			exit(EXIT_FAILURE);
-		}
-	}
-	
-	double stm = SSTime();
-	char rdbuf[65535];
-	unsigned char hashlist[fcount][16];
-	ssize_t rdbp = 0;
-	MD5 md5;
-	
-	for (int i = 0; i < fcount; i++)
-	{
-		md5.Init();
-		
-		while ((rdbp = read(ffd[i], rdbuf, 65535)) > 0)
-			md5.Append((unsigned char *) rdbuf, rdbp);
-		
-		if (rdbp < 0)
-		{
-			printf("%d: Read error: %s\n", i, strerror(errno));
-			exit(EXIT_FAILURE);
-		}
-		
-		md5.Finish(hashlist[i]);
-	}
-	
-	int matches = 0;
-	
-	for (int i = 0; i < fcount; i++)
-	{
-		for (int j = i + 1; j < fcount; j++)
-		{
-			if (memcmp(hashlist[i], hashlist[j], 16) == 0)
-				matches++;
-		}
-	}
-	
-	double etm = SSTime();
-	for (int i = 0; i < fcount; i++)
-		close(ffd[i]);
-	return etm - stm;
-}
+void DeepCompare(FileReference *first);
 
 int main(int argc, char **argv)
 {
@@ -202,60 +34,12 @@ int main(int argc, char **argv)
 		return EXIT_FAILURE;
 	}
 	
-	if (strcmp(argv[1], "-t") == 0)
-	{
-		if (argc < 5)
-			return EXIT_FAILURE;
-		
-		int tests = atoi(argv[2]);
-		if (!tests)
-			return EXIT_FAILURE;
-		
-		double re_h[tests];
-		double re_b[tests];
-
-		printf("Running %d tests of byte comparison, after discarding two\n", tests);
-		TestCompareByte(argc - 3, argv + 3);
-		TestCompareByte(argc - 3, argv + 3);
-		for (int i = 0; i < tests; i++)
-			re_b[i] = TestCompareByte(argc - 3, argv + 3);
-		
-		printf("Running %d tests of hash comparison, after discarding two\n", tests);
-		TestCompareHash(argc - 3, argv + 3);
-		TestCompareHash(argc - 3, argv + 3);
-		for (int i = 0; i < tests; i++)
-			re_h[i] = TestCompareHash(argc - 3, argv + 3);
-		
-		printf("\n");
-		
-		double avg_h = 0, max_h = 0, min_h = 0;
-		double avg_b = 0, max_b = 0, min_b = 0;
-		
-		for (int i = 0; i < tests; i++)
-		{
-			avg_h += re_h[i];
-			if (!i || re_h[i] > max_h)
-				max_h = re_h[i];
-			if (!i || re_h[i] < min_h)
-				min_h = re_h[i];
-			
-			avg_b += re_b[i];
-			if (!i || re_b[i] > max_b)
-				max_b = re_b[i];
-			if (!i || re_b[i] < min_b)
-				min_b = re_b[i];
-		}
-		
-		avg_h = avg_h / tests;
-		avg_b = avg_b / tests;
-		
-		printf("Byte:\n\tmin %f %+f\n\tmax %f %+f\n\tavg %f %+f\n", min_b, min_b - min_h, max_b, max_b - max_h, avg_b, avg_b - avg_h);
-		printf("Hash:\n\tmin %f %+f\n\tmax %f %+f\n\tavg %f %+f\n", min_h, min_h - min_b, max_h, max_h - max_b, avg_h, avg_h - avg_b);
-		printf("\n");
-		
-		return EXIT_SUCCESS;
-	}
-	
+	/* Initial scan - this step will recurse through the directory tree(s)
+	 * and find each file we will be working with. These files are mapped
+	 * by their size as this process runs through, so we will be provided
+	 * with a list of files with the same sizes at the end. Those files
+	 * are what we select for the deep comparison, which is where the magic
+	 * really shows ;) */
 	for (int i = 1; i < argc; i++)
 		ScanDirectory(argv[i]);
 	
@@ -264,66 +48,9 @@ int main(int argc, char **argv)
 	
 	SizeMap.clear();
 	
-	MD5 md5;
-	unsigned char hbuf[512 * 1024];
-	ssize_t rd;
-	std::map<std::string,FileReference*> HashList;
 	for (std::vector<FileReference*>::iterator it = SizeDups.begin(); it != SizeDups.end(); ++it)
 	{
-		for (FileReference *p = *it, *np; p; p = np)
-		{
-			np = p->next;
-			
-			int ffd = open((std::string(p->dir) + "/" + p->file).c_str(), O_RDONLY);
-			if (ffd < 0)
-			{
-				printf("Unable to open file '%s/%s': %s\n", p->dir, p->file, strerror(errno));
-				continue;
-			}
-			
-			md5.Init();
-			while ((rd = read(ffd, hbuf, sizeof(hbuf))) > 0)
-				md5.Append(hbuf, rd);
-
-			close(ffd);
-			
-			if (rd < 0)
-			{
-				printf("Unable to read file '%s/%s': %s\n", p->dir, p->file, strerror(errno));
-				continue;
-			}
-			
-			std::string hash((const char *) md5.Finish(), 16);
-			std::map<std::string,FileReference*>::iterator hit = HashList.find(hash);
-			if (hit == HashList.end())
-			{
-				p->next = NULL;
-				HashList.insert(std::make_pair(hash, p));
-			}
-			else
-			{
-				FileReference *i = hit->second;
-				while (i->next != NULL)
-					i = i->next;
-				i->next = p;
-				p->next = NULL;
-			}
-		}
-		
-		printf("\n");
-		char obuf[33];
-		for (std::map<std::string,FileReference*>::iterator ht = HashList.begin(); ht != HashList.end(); ++ht)
-		{
-			if (!ht->second->next)
-				continue;
-			
-			md5.Hex((const unsigned char *) ht->first.data(), 16, obuf);
-			printf("%s\n", obuf);
-			for (FileReference *p = ht->second; p; p = p->next)
-				printf("\t%s/%s\n", p->dir, p->file);
-			printf("\n");
-		}
-		HashList.clear();
+		DeepCompare(*it);
 	}
 	
 	return EXIT_SUCCESS;
@@ -393,4 +120,178 @@ void ScanDirectory(const char *path)
 	}
 	
 	closedir(d);
+}
+
+/* Deep comparison is the clever technique upon which the entire
+ * concept of fastdup is based.
+ *
+ * The normal method of comparing files is to hash them and compare
+ * their hashes - this has the benefit of being O(n) (whereas
+ * straight comparisons are O(n^n)), but is somewhat CPU intensive
+ * (though usually still disk bound) and not infallable (collisions).
+ * The real problem with hashing when used on large filesets is that,
+ * while it can run in O(n) time, it cannot run in anything less.
+ * That is, every file must be hashed entirely. When dealing with
+ * large files or large numbers of files, this can be come seriously
+ * slow.
+ *
+ * Deep comparison compares files byte by byte, but does so very
+ * intelligently. We've already got files in sets by filesize, which
+ * dramatically reduces the number of comparisons necessary. The
+ * idea is to compare every file to every other file in blocks, but
+ * with the use of a number of tricks to reduce the number of
+ * comparisons actually necessary. As a result, this method will work
+ * fastest on files that are not duplicates (which will be eliminated
+ * as soon as they cannot match anything else), which are far more
+ * common in most datasets than non-duplicates. See the code for
+ * details on how exactly this is optimized down from needing full
+ * O(n^n) comparisons on the contents of every file - there are many
+ * methods, some of which are quite intricate.
+ */
+void DeepCompare(FileReference *first)
+{
+	// Buffer for quick creation of the file's full path
+	char fnbuf[PATH_MAX];
+	size_t fnbpos = strlcpy(fnbuf, first->dir, sizeof(fnbuf));
+	if (fnbuf[fnbpos - 1] != '/')
+		fnbuf[fnbpos++] = '/';
+	size_t fnblen = sizeof(fnbuf) - fnbpos;
+	
+	int fcount = 0;
+	for (FileReference *p = first; p; p = p->next)
+		++fcount;
+	
+	// FDs
+	int ffd[fcount];
+	// Data buffers
+	char *rrdbuf = new char[fcount * 65535];
+	char *rdbuf[fcount];
+	ssize_t rdbp = 0;
+	// Matchflag is true for each file pair that may still match
+	bool matchflag[(fcount*(fcount-1))/2];
+	// Omit is true for files that have no possible matches left
+	bool omit[fcount];
+	int omitted = 0;
+	int skipcount[fcount];
+	
+	memset(matchflag, true, sizeof(matchflag));
+	memset(omit, false, sizeof(omit));
+	memset(skipcount, 0, sizeof(skipcount));
+	
+	int i = 0, j = 0;
+	for (FileReference *p = first; p; p = p->next, ++i)
+	{
+		strlcpy(fnbuf + fnbpos, p->file, fnblen);
+		printf("candidate %d: %s\n", i, fnbuf);
+		
+		rdbuf[i] = rrdbuf + (65535 * i);
+		
+		if ((ffd[i] = open(fnbuf, O_RDONLY)) < 0)
+		{
+			printf("Unable to open file '%s': %s\n", fnbuf, strerror(errno));
+			exit(EXIT_FAILURE);
+		}
+	}
+	
+	// Loop over blocks of the files, which will be compared
+	for (;;)
+	{
+		printf("read\t");
+		for (i = 0; i < fcount; i++)
+		{
+			if (omit[i])
+				continue;
+			
+			rdbp = read(ffd[i], rdbuf[i], 65535);
+			
+			printf("%d ", i);
+			
+			if (rdbp < 0)
+			{
+				printf("%d: Read error: %s\n", i, strerror(errno));
+				exit(EXIT_FAILURE);
+			}
+			else if (!rdbp)
+			{
+				// All files are assumed to be equal in size
+				break;
+			}
+		}
+		
+		if (!rdbp)
+			break;
+		
+		printf("\ncmp\t");
+		
+		for (i = 0; i < fcount; i++)
+		{
+			if (omit[i])
+			{
+				//printf("\033[22;33m%d ", i);
+				continue;
+			}
+			
+			for (j = i + 1; j < fcount; j++)
+			{
+				if (omit[j])
+				{
+					//printf("\033[22;33m%d|%d ", i, j);
+					continue;
+				}
+				
+				int flagpos = int(((fcount-1)*i)-(i*(i/2.0-0.5))+(j-i)-1);
+				if (!matchflag[flagpos])
+				{
+					//printf("\033[0m%d|%d ", i, j);
+					continue;
+				}
+				
+				if (memcmp(rdbuf[i], rdbuf[j], rdbp) == 0)
+				{
+					printf("\033[1;32m%d|%d ", i, j);
+					continue;
+				}
+				
+				printf("\033[22;31m%d[%d]|%d[%d] ", i, skipcount[i], j, skipcount[j]);
+				
+				matchflag[flagpos] = 0;
+				skipcount[i]++;
+				if (++skipcount[j] == fcount - 1)
+				{
+					printf("\033[22;35m%d ", j);
+					omit[j] = true;
+					omitted++;
+				}
+			}
+			
+			if (skipcount[i] == fcount - 1)
+			{
+				printf("\033[22;35m%d ", i);
+				omit[i] = true;
+				if (++omitted == fcount)
+					goto endscan;
+			}
+		}
+		
+		printf("\033[0m\n");
+	}
+	
+ endscan:
+	printf("\n\n");
+	for (i = 0; i < fcount; i++)
+	{
+		if (omit[i])
+			continue;
+		
+		for (int j = i + 1; j < fcount; j++)
+		{
+			if (omit[j])
+				continue;
+			
+			if (!matchflag[int(((fcount-1)*i)-(i*(i/2.0-0.5))+(j-i)-1)])
+				continue;
+			
+			printf("Match: %d & %d\n", i, j);
+		}
+	}
 }
