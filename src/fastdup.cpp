@@ -11,6 +11,7 @@
 #include <map>
 #include <string>
 #include <vector>
+#include <sys/time.h>
 
 struct FileReference
 {
@@ -24,12 +25,235 @@ std::vector<FileReference*> SizeDups;
 
 void ScanDirectory(const char *path);
 
+double SSTime()
+{
+	struct timeval tv;
+	gettimeofday(&tv, NULL);
+	return (double)tv.tv_sec + (tv.tv_usec / (double)1000000);
+}
+
+double TestCompareByte(int argc, char **argv)
+{
+	int fcount = argc;
+	
+	int ffd[fcount];
+	
+	for (int i = 0; i < argc; i++)
+	{
+		ffd[i] = open(argv[i], O_RDONLY);
+		if (ffd[i] < 0)
+		{
+			printf("Unable to open '%s': %s\n", argv[i], strerror(errno));
+			exit(EXIT_FAILURE);
+		}
+	}
+	
+	double stm = SSTime();
+	char rdbuf[fcount][65535];
+	ssize_t rdbp = 0;
+	bool matchflag[(fcount*(fcount-1))/2];
+	bool omit[fcount];
+	int omitted = 0;
+	int skipcount[fcount];
+	
+	memset(matchflag, true, sizeof(matchflag));
+	memset(omit, 0, sizeof(omit));
+	memset(skipcount, 0, sizeof(skipcount));
+	
+	for (;;)
+	{
+		for (int i = 0; i < fcount; i++)
+		{
+			if (omit[i])
+				continue;
+			
+			skipcount[i] = 0;
+			rdbp = read(ffd[i], rdbuf[i], 65535);
+			
+			if (rdbp < 0)
+			{
+				printf("%d: Read error: %s\n", i, strerror(errno));
+				exit(EXIT_FAILURE);
+			}
+			else if (!rdbp)
+			{
+				// All files are assumed to be equal in size
+				break;
+			}
+		}
+		
+		if (!rdbp)
+			break;
+		
+		for (int i = 0; i < fcount; i++)
+		{
+			if (omit[i])
+				continue;
+			
+			for (int j = i + 1; j < fcount; j++)
+			{
+				if (omit[j])
+					continue;
+				
+				int flagpos = (int)(((fcount-1)*i)-(i*(i/2-0.5))+(j-i)-1);
+				if (!matchflag[flagpos] || memcmp(rdbuf[i], rdbuf[j], rdbp) == 0)
+					continue;
+				
+				matchflag[flagpos] = 0;
+				skipcount[i]++;
+				if (++skipcount[j] == (fcount - 1))
+				{
+					omit[j] = true;
+					omitted++;
+				}
+			}
+			
+			if (skipcount[i] == (fcount - 1))
+			{
+				omit[i] = true;
+				if (++omitted == fcount)
+					goto endscan;
+			}
+		}
+	}
+	
+ endscan:
+	int matches = 0;
+	for (int i = 0; i < fcount; i++)
+	{
+		if (omit[i])
+			continue;
+		
+		for (int j = i + 1; j < fcount; j++)
+		{
+			if (omit[j])
+				continue;
+			
+			if (matchflag[(int)(((fcount-1)*i)-(i*(i/2-0.5))+(j-i)-1)])
+				matches++;
+		}
+	}
+	
+	double etm = SSTime();
+	for (int i = 0; i < fcount; i++)
+		close(ffd[i]);
+	return etm - stm;
+}
+
+double TestCompareHash(int argc, char **argv)
+{
+	int fcount = argc;
+	int ffd[fcount];
+	
+	for (int i = 0; i < argc; i++)
+	{
+		ffd[i] = open(argv[i], O_RDONLY);
+		if (ffd[i] < 0)
+		{
+			printf("Unable to open '%s': %s\n", argv[i], strerror(errno));
+			exit(EXIT_FAILURE);
+		}
+	}
+	
+	double stm = SSTime();
+	char rdbuf[65535];
+	unsigned char hashlist[fcount][16];
+	ssize_t rdbp = 0;
+	MD5 md5;
+	
+	for (int i = 0; i < fcount; i++)
+	{
+		md5.Init();
+		
+		while ((rdbp = read(ffd[i], rdbuf, 65535)) > 0)
+			md5.Append((unsigned char *) rdbuf, rdbp);
+		
+		if (rdbp < 0)
+		{
+			printf("%d: Read error: %s\n", i, strerror(errno));
+			exit(EXIT_FAILURE);
+		}
+		
+		md5.Finish(hashlist[i]);
+	}
+	
+	int matches = 0;
+	
+	for (int i = 0; i < fcount; i++)
+	{
+		for (int j = i + 1; j < fcount; j++)
+		{
+			if (memcmp(hashlist[i], hashlist[j], 16) == 0)
+				matches++;
+		}
+	}
+	
+	double etm = SSTime();
+	for (int i = 0; i < fcount; i++)
+		close(ffd[i]);
+	return etm - stm;
+}
+
 int main(int argc, char **argv)
 {
 	if (argc < 2)
 	{
 		printf("Usage: %s <directory>\n", argv[0]);
 		return EXIT_FAILURE;
+	}
+	
+	if (strcmp(argv[1], "-t") == 0)
+	{
+		if (argc < 5)
+			return EXIT_FAILURE;
+		
+		int tests = atoi(argv[2]);
+		if (!tests)
+			return EXIT_FAILURE;
+		
+		double re_h[tests];
+		double re_b[tests];
+
+		printf("Running %d tests of byte comparison, after discarding two\n", tests);
+		TestCompareByte(argc - 3, argv + 3);
+		TestCompareByte(argc - 3, argv + 3);
+		for (int i = 0; i < tests; i++)
+			re_b[i] = TestCompareByte(argc - 3, argv + 3);
+		
+		printf("Running %d tests of hash comparison, after discarding two\n", tests);
+		TestCompareHash(argc - 3, argv + 3);
+		TestCompareHash(argc - 3, argv + 3);
+		for (int i = 0; i < tests; i++)
+			re_h[i] = TestCompareHash(argc - 3, argv + 3);
+		
+		printf("\n");
+		
+		double avg_h = 0, max_h = 0, min_h = 0;
+		double avg_b = 0, max_b = 0, min_b = 0;
+		
+		for (int i = 0; i < tests; i++)
+		{
+			avg_h += re_h[i];
+			if (!i || re_h[i] > max_h)
+				max_h = re_h[i];
+			if (!i || re_h[i] < min_h)
+				min_h = re_h[i];
+			
+			avg_b += re_b[i];
+			if (!i || re_b[i] > max_b)
+				max_b = re_b[i];
+			if (!i || re_b[i] < min_b)
+				min_b = re_b[i];
+		}
+		
+		avg_h = avg_h / tests;
+		avg_b = avg_b / tests;
+		
+		printf("Byte:\n\tmin %f %+f\n\tmax %f %+f\n\tavg %f %+f\n", min_b, min_b - min_h, max_b, max_b - max_h, avg_b, avg_b - avg_h);
+		printf("Hash:\n\tmin %f %+f\n\tmax %f %+f\n\tavg %f %+f\n", min_h, min_h - min_b, max_h, max_h - max_b, avg_h, avg_h - avg_b);
+		printf("\n");
+		
+		return EXIT_SUCCESS;
 	}
 	
 	for (int i = 1; i < argc; i++)
