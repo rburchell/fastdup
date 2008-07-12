@@ -320,15 +320,27 @@ void DeepCompare(FileReference *first)
 		
 		close(ffd[i]);
 		
+		bool fm = true;
+		
 		for (int j = i + 1; j < fcount; j++)
 		{
 			if (!omit[j] && matchflag[int(((fcount-1)*i)-(i*(i/2.0-0.5))+(j-i)-1)])
 			{
-				PathMerge(fnbuf, sizeof(fnbuf), frmap[i]->dir, frmap[i]->file);
-				printf("\t%s\n", fnbuf);
+				if (fm)
+				{
+					PathMerge(fnbuf, sizeof(fnbuf), frmap[i]->dir, frmap[i]->file);
+					printf("\t%s\n", fnbuf);
+					fm = false;
+				}
+				
 				PathMerge(fnbuf, sizeof(fnbuf), frmap[j]->dir, frmap[j]->file);
-				printf("\t%s\n\n", fnbuf);
+				printf("\t%s\n", fnbuf);
+				
+				omit[j] = true;
+				close(ffd[j]);
 			}
 		}
+		
+		printf("\n");
 	}
 }
