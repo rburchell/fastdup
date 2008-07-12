@@ -165,6 +165,7 @@ void DeepCompare(FileReference *first)
 	ssize_t rdbp = 0;
 	// Matchflag is true for each file pair that may still match
 	bool matchflag[(fcount*(fcount-1))/2];
+	int mresult[fcount];
 	// Omit is true for files that have no possible matches left
 	bool omit[fcount];
 	int omitted = 0;
@@ -217,7 +218,7 @@ void DeepCompare(FileReference *first)
 		if (!rdbp)
 			break;
 		
-		printf("\ncmp\t");
+		printf("\n");
 		
 		for (i = 0; i < fcount; i++)
 		{
@@ -242,13 +243,41 @@ void DeepCompare(FileReference *first)
 					continue;
 				}
 				
-				if (memcmp(rdbuf[i], rdbuf[j], rdbp) == 0)
-				{
+				mresult[j] = memcmp(rdbuf[i], rdbuf[j], rdbp);
+				
+				if (mresult[j] != 0)
+					printf("\033[22;31m%d[%d]%c%d[%d] ", i, skipcount[i] + 1, (mresult[j] < 0) ? '<' : '>', j, skipcount[j] + 1);
+				else
 					printf("\033[1;32m%d|%d ", i, j);
-					continue;
+				
+				for (int k = j - 1; k > i; --k)
+				{
+					if (omit[k])
+						continue;
+					
+					int kflagpos = int(((fcount-1)*k)-(k*(k/2.0-0.5))+(j-k)-1);
+					if (!matchflag[kflagpos])
+						continue;
+					
+					if (mresult[k] != mresult[j])
+					{
+						printf("\033[22;36m%d[%d]%c%d[%d] ", k, skipcount[k] + 1, (mresult[k] > mresult[j]) ? '>' : '<', j, skipcount[j] + 1);
+						matchflag[kflagpos] = 0;
+						++skipcount[j];
+						if (++skipcount[k] == fcount - 1)
+						{
+							printf("\033[22;35m%d ", k);
+							omit[k] = true;
+							omitted++;
+						}
+					}
 				}
 				
-				printf("\033[22;31m%d[%d]|%d[%d] ", i, skipcount[i], j, skipcount[j]);
+				if (mresult[j] == 0)
+				{
+					printf("\n");
+					continue;
+				}
 				
 				matchflag[flagpos] = 0;
 				skipcount[i]++;
@@ -258,11 +287,12 @@ void DeepCompare(FileReference *first)
 					omit[j] = true;
 					omitted++;
 				}
+				printf("\n");
 			}
 			
 			if (skipcount[i] == fcount - 1)
 			{
-				printf("\033[22;35m%d ", i);
+				printf("\033[22;35m%d\n", i);
 				omit[i] = true;
 				if (++omitted == fcount)
 					goto endscan;
