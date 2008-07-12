@@ -175,14 +175,14 @@ void DeepCompare(FileReference *first)
 	char *rdbuf[fcount];
 	ssize_t rdbp = 0;
 	// Matchflag is true for each file pair that may still match
-	bool matchflag[(fcount*(fcount-1))/2];
+	char matchflag[(fcount*(fcount-1))/2];
 	int mresult[fcount];
 	// Omit is true for files that have no possible matches left
 	bool omit[fcount];
 	int omitted = 0;
 	int skipcount[fcount];
 	
-	memset(matchflag, true, sizeof(matchflag));
+	memset(matchflag, 1, sizeof(matchflag));
 	memset(omit, false, sizeof(omit));
 	memset(skipcount, 0, sizeof(skipcount));
 	
@@ -240,8 +240,13 @@ void DeepCompare(FileReference *first)
 				int flagpos = int(((fcount-1)*i)-(i*(i/2.0-0.5))+(j-i)-1);
 				if (!matchflag[flagpos])
 					continue;
-				
-				mresult[j] = memcmp(rdbuf[i], rdbuf[j], rdbp);
+				else if (matchflag[flagpos] == 2)
+				{
+					matchflag[flagpos] = 1;
+					mresult[j] = 0;
+				}
+				else
+					mresult[j] = memcmp(rdbuf[i], rdbuf[j], rdbp);
 				
 				for (int k = j - 1; k > i; --k)
 				{
@@ -263,6 +268,14 @@ void DeepCompare(FileReference *first)
 							ffd[k] = -1;
 							omitted++;
 						}
+					}
+					else if (mresult[k] == 0 && mresult[j] == 0)
+					{
+						/* These will be equal, so we can avoid comparing them; signal this by setting
+						 * matchflag to 2 for this block (it is one-shot, and will be reset before the
+						 * next block). This is a huge saver when there is more than one duplicate of
+						 * the same file. */
+						matchflag[kflagpos] = 2;
 					}
 				}
 				
