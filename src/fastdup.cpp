@@ -23,7 +23,7 @@ struct FileReference
 std::map<off_t,FileReference*> SizeMap;
 std::vector<FileReference*> SizeDups;
 
-void ScanDirectory(const char *path);
+void ScanDirectory(const char *basepath, int bplen, const char *name);
 void DeepCompare(FileReference *first);
 
 int main(int argc, char **argv)
@@ -41,7 +41,7 @@ int main(int argc, char **argv)
 	 * are what we select for the deep comparison, which is where the magic
 	 * really shows ;) */
 	for (int i = 1; i < argc; i++)
-		ScanDirectory(argv[i]);
+		ScanDirectory(argv[i], strlen(argv[i]), NULL);
 	
 	printf("Initial scanning complete on %d files\n", SizeMap.size());
 	printf("Running deep scan on %d sets of files\n\n", SizeDups.size());
@@ -56,18 +56,26 @@ int main(int argc, char **argv)
 	return EXIT_SUCCESS;
 }
 
-void ScanDirectory(const char *path)
+void ScanDirectory(const char *basepath, int bplen, const char *name)
 {
+	int pathlen = bplen + 1;
+	if (name)
+		pathlen += strlen(name);
+	
+	char *path = new char[pathlen + 1];
+	strncpy(path, basepath, bplen);
+	if (name)
+		strcpy(path + bplen, name);
+	path[pathlen - 1] = '/';
+	path[pathlen] = 0;
+	
 	DIR *d = opendir(path);
 	if (!d)
 	{
 		printf("opendir error (%s): %s\n", path, strerror(errno));
+		delete []path;
 		return;
 	}
-	
-	char *tmp = new char[strlen(path) + 1];
-	strcpy(tmp, path);
-	path = tmp;
 	
 	struct dirent *de;
 	struct stat st;
@@ -79,7 +87,7 @@ void ScanDirectory(const char *path)
 		
 		if (fstatat(dfd, de->d_name, &st, 0) < 0)
 		{
-			printf("stat failure (%s/%s): %s\n", path, de->d_name, strerror(errno));
+			printf("stat failure (%s%s): %s\n", path, de->d_name, strerror(errno));
 			continue;
 		}
 		
@@ -87,6 +95,7 @@ void ScanDirectory(const char *path)
 		{
 			FileReference *ref = new FileReference();
 			ref->dir = path;
+			// is reclen right?
 			ref->file = new char[de->d_reclen + 1];
 			strcpy(ref->file, de->d_name);
 			ref->next = NULL;
@@ -111,11 +120,11 @@ void ScanDirectory(const char *path)
 		}
 		else if (S_ISDIR(st.st_mode))
 		{
-			ScanDirectory((std::string(path) + "/" + de->d_name).c_str());
+			ScanDirectory(path, pathlen, de->d_name);
 		}
 		else
 		{
-			printf("Skipped (non-file): %s/%s\n", path, de->d_name);
+			printf("Skipped (non-file): %s%s\n", path, de->d_name);
 		}
 	}
 	
