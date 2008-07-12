@@ -40,10 +40,17 @@ int main(int argc, char **argv)
 	 * with a list of files with the same sizes at the end. Those files
 	 * are what we select for the deep comparison, which is where the magic
 	 * really shows ;) */
+	printf("Scanning... this may take some time\n");
 	for (int i = 1; i < argc; i++)
 		ScanDirectory(argv[i], strlen(argv[i]), NULL);
 	
-	printf("Initial scanning complete on %d files\n", SizeMap.size());
+	if (SizeMap.empty())
+	{
+		printf("\nNo files found!\n");
+		return EXIT_SUCCESS;
+	}
+	
+	printf("\nInitial scanning complete on %d files\n", SizeMap.size());
 	printf("Running deep scan on %d sets of files\n\n", SizeDups.size());
 	
 	SizeMap.clear();
@@ -93,6 +100,9 @@ void ScanDirectory(const char *basepath, int bplen, const char *name)
 		
 		if (S_ISREG(st.st_mode))
 		{
+			if (!st.st_size)
+				continue;
+			
 			FileReference *ref = new FileReference();
 			ref->dir = path;
 			// is reclen right?
@@ -121,10 +131,6 @@ void ScanDirectory(const char *basepath, int bplen, const char *name)
 		else if (S_ISDIR(st.st_mode))
 		{
 			ScanDirectory(path, pathlen, de->d_name);
-		}
-		else
-		{
-			printf("Skipped (non-file): %s%s\n", path, de->d_name);
 		}
 	}
 	
