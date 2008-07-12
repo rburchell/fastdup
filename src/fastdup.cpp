@@ -193,15 +193,12 @@ void DeepCompare(FileReference *first)
 	// Loop over blocks of the files, which will be compared
 	for (;;)
 	{
-		printf("read\t");
 		for (i = 0; i < fcount; i++)
 		{
 			if (omit[i])
 				continue;
 			
 			rdbp = read(ffd[i], rdbuf[i], 65535);
-			
-			printf("%d ", i);
 			
 			if (rdbp < 0)
 			{
@@ -218,37 +215,21 @@ void DeepCompare(FileReference *first)
 		if (!rdbp)
 			break;
 		
-		printf("\n");
-		
 		for (i = 0; i < fcount; i++)
 		{
 			if (omit[i])
-			{
-				//printf("\033[22;33m%d ", i);
 				continue;
-			}
 			
 			for (j = i + 1; j < fcount; j++)
 			{
 				if (omit[j])
-				{
-					//printf("\033[22;33m%d|%d ", i, j);
 					continue;
-				}
 				
 				int flagpos = int(((fcount-1)*i)-(i*(i/2.0-0.5))+(j-i)-1);
 				if (!matchflag[flagpos])
-				{
-					//printf("\033[0m%d|%d ", i, j);
 					continue;
-				}
 				
 				mresult[j] = memcmp(rdbuf[i], rdbuf[j], rdbp);
-				
-				if (mresult[j] != 0)
-					printf("\033[22;31m%d[%d]%c%d[%d] ", i, skipcount[i] + 1, (mresult[j] < 0) ? '<' : '>', j, skipcount[j] + 1);
-				else
-					printf("\033[1;32m%d|%d ", i, j);
 				
 				for (int k = j - 1; k > i; --k)
 				{
@@ -261,49 +242,39 @@ void DeepCompare(FileReference *first)
 					
 					if (mresult[k] != mresult[j])
 					{
-						printf("\033[22;36m%d[%d]%c%d[%d] ", k, skipcount[k] + 1, (mresult[k] > mresult[j]) ? '>' : '<', j, skipcount[j] + 1);
 						matchflag[kflagpos] = 0;
 						++skipcount[j];
 						if (++skipcount[k] == fcount - 1)
 						{
-							printf("\033[22;35m%d ", k);
 							omit[k] = true;
 							omitted++;
 						}
 					}
 				}
 				
-				if (mresult[j] == 0)
+				if (mresult[j] != 0)
 				{
-					printf("\n");
-					continue;
+					matchflag[flagpos] = 0;
+					skipcount[i]++;
+					if (++skipcount[j] == fcount - 1)
+					{
+						omit[j] = true;
+						omitted++;
+					}
 				}
-				
-				matchflag[flagpos] = 0;
-				skipcount[i]++;
-				if (++skipcount[j] == fcount - 1)
-				{
-					printf("\033[22;35m%d ", j);
-					omit[j] = true;
-					omitted++;
-				}
-				printf("\n");
 			}
 			
 			if (skipcount[i] == fcount - 1)
 			{
-				printf("\033[22;35m%d\n", i);
 				omit[i] = true;
 				if (++omitted == fcount)
 					goto endscan;
 			}
 		}
-		
-		printf("\033[0m\n");
 	}
 	
  endscan:
-	printf("\n\n");
+	printf("\n");
 	for (i = 0; i < fcount; i++)
 	{
 		if (ffd[i] >= 0)
