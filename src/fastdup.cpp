@@ -276,6 +276,12 @@ void DeepCompare(FileReference *first)
 	printf("\n\n");
 	for (i = 0; i < fcount; i++)
 	{
+		if (ffd[i] >= 0)
+		{
+			close(ffd[i]);
+			ffd[i] = -1;
+		}
+		
 		if (omit[i])
 			continue;
 		

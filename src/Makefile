@@ -1,4 +1,4 @@
-FLAGS = -pipe -ggdb -Wall -D_FORTIFY_SOURCE -D_FILE_OFFSET_BITS=64
+FLAGS = -pipe -ggdb -Wall -O2 -D_FORTIFY_SOURCE -D_FILE_OFFSET_BITS=64
 LDFLAGS = 
 FILES := $(wildcard *.cpp)
 OBJECTS := $(patsubst %.cpp,%.o,$(FILES))
