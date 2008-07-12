@@ -44,7 +44,7 @@ int main(int argc, char **argv)
 		ScanDirectory(argv[i]);
 	
 	printf("Initial scanning complete on %d files\n", SizeMap.size());
-	printf("Running deep scan on %d sets of files\n", SizeDups.size());
+	printf("Running deep scan on %d sets of files\n\n", SizeDups.size());
 	
 	SizeMap.clear();
 	
@@ -159,6 +159,8 @@ void DeepCompare(FileReference *first)
 	
 	// FDs
 	int ffd[fcount];
+	// File reference map, used afterwards to map back to the real file
+	FileReference *frmap[fcount];
 	// Data buffers
 	char *rrdbuf = new char[fcount * 65535];
 	char *rdbuf[fcount];
@@ -178,8 +180,9 @@ void DeepCompare(FileReference *first)
 	int i = 0, j = 0;
 	for (FileReference *p = first; p; p = p->next, ++i)
 	{
+		frmap[i] = p;
+		
 		PathMerge(fnbuf, sizeof(fnbuf), p->dir, p->file);
-		printf("candidate %d: %s\n", i, fnbuf);
 		
 		rdbuf[i] = rrdbuf + (65535 * i);
 		
@@ -247,6 +250,8 @@ void DeepCompare(FileReference *first)
 						if (++skipcount[k] == fcount - 1)
 						{
 							omit[k] = true;
+							close(ffd[k]);
+							ffd[k] = -1;
 							omitted++;
 						}
 					}
@@ -259,6 +264,8 @@ void DeepCompare(FileReference *first)
 					if (++skipcount[j] == fcount - 1)
 					{
 						omit[j] = true;
+						close(ffd[j]);
+						ffd[j] = -1;
 						omitted++;
 					}
 				}
@@ -267,6 +274,8 @@ void DeepCompare(FileReference *first)
 			if (skipcount[i] == fcount - 1)
 			{
 				omit[i] = true;
+				close(ffd[i]);
+				ffd[i] = -1;
 				if (++omitted == fcount)
 					goto endscan;
 			}
@@ -274,27 +283,30 @@ void DeepCompare(FileReference *first)
 	}
 	
  endscan:
-	printf("\n");
+ 	delete []rrdbuf;
+ 	
+ 	if (omitted == fcount)
+ 	{
+ 		// No matches
+ 		return;
+ 	}
+ 	
 	for (i = 0; i < fcount; i++)
 	{
-		if (ffd[i] >= 0)
-		{
-			close(ffd[i]);
-			ffd[i] = -1;
-		}
-		
 		if (omit[i])
 			continue;
 		
+		close(ffd[i]);
+		
 		for (int j = i + 1; j < fcount; j++)
 		{
-			if (omit[j])
-				continue;
-			
-			if (!matchflag[int(((fcount-1)*i)-(i*(i/2.0-0.5))+(j-i)-1)])
-				continue;
-			
-			printf("Match: %d & %d\n", i, j);
+			if (!omit[j] && matchflag[int(((fcount-1)*i)-(i*(i/2.0-0.5))+(j-i)-1)])
+			{
+				PathMerge(fnbuf, sizeof(fnbuf), frmap[i]->dir, frmap[i]->file);
+				printf("\t%s\n", fnbuf);
+				PathMerge(fnbuf, sizeof(fnbuf), frmap[j]->dir, frmap[j]->file);
+				printf("\t%s\n\n", fnbuf);
+			}
 		}
 	}
 }
