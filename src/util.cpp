@@ -200,3 +200,107 @@ size_t strlcat(char *dst, const char *src, size_t siz)
 	
 	return (dlen + (s - src));        /* count does not include NUL */
 }
+
+/* Resolve the actual location of a path by parsing out '..'
+ * and '.' segments. Note that if the path given is relative,
+ * the resulting path may still contain '..' segments, but
+ * will only do so at the beginning. Return value is 0 for
+ * invalid input or insufficient buffer space, and the length
+ * of the new path on success. Buffer will be null terminated.
+ * It will always be enough for bufsz to be strlen(path) + 1.
+ */
+size_t PathResolve(char *buf, size_t bufsz, const char *path)
+{
+	if (!path || !*path || !buf || !bufsz)
+		return 0;
+	
+	size_t bp = 0;
+	const char *segb = path;
+	for (int i = 0; ; ++i)
+	{
+		if (!path[i] || path[i] == '/')
+		{
+			if (i && segb == path + i)
+			{
+				if (!path[i])
+					break;
+				segb = path + i + 1;
+				continue;
+			}
+			
+			int segl = (path + i - segb) + 1;
+			if (bp + segl >= bufsz)
+				return 0;
+			
+			/* segl will be one higher because it copies the / or null */
+			if (segl == 2 && *segb == '.')
+			{
+				// ./ refers to the current directory, so it has no effect.
+				if (!path[i])
+					break;
+				segb = path + i + 1;
+				continue;
+			}
+			else if (segl == 3 && *segb == '.' && segb[1] == '.')
+			{
+				// ../ refers to the directory above
+				if (bp == 1 && buf[0] == '/')
+				{
+					// Going below / is impossible, ignore.
+					if (!path[i])
+						break;
+					segb = path + i + 1;
+					continue;
+				}
+				
+				// If the path is relative, it is possible to go below what we know, so treat the ../ as something normal
+				if (bp)
+				{
+					for (int j = bp - 2; j >= 0; --j)
+					{
+						if (buf[j] == '/' || j == 0)
+						{
+							if (buf[j] == '/')
+								j++;
+							
+							if ((unsigned int) j + 2 < bp && buf[j] == '.' && buf[j + 1] == '.' && buf[j + 2] == '/')
+							{
+								// Pile it on.
+								memcpy(buf + bp, segb, segl);
+								bp += segl;
+							}
+							else
+							{
+								// Overwrite this segment
+								bp = j;
+								buf[bp] = '\0';
+							}
+							
+							break;
+						}
+					}
+					
+					if (!path[i])
+						break;
+					segb = path + i + 1;
+					continue;
+				}
+			}
+			
+			memcpy(buf + bp, segb, segl);
+			bp += segl;
+			
+			if (!path[i])
+				break;
+			
+			segb = path + i + 1;
+		}
+	}
+	
+	if (bp && !buf[bp - 1])
+		bp--;
+	else
+		buf[bp] = 0;
+	
+	return bp;
+}

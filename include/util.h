@@ -7,6 +7,7 @@
 bool stricompare(const std::string &s1, const std::string &s2);
 const char *PathMerge(char *buf, size_t size, const char *p1, const char *p2);
 std::string PathMerge(const std::string &p1, const std::string &p2);
+size_t PathResolve(char *buf, size_t bufsz, const char *path);
 
 bool FileExists(const char *path);
 bool DirectoryExists(const char *path);
