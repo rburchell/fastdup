@@ -23,6 +23,9 @@ struct FileReference
 std::map<off_t,FileReference*> SizeMap;
 std::vector<FileReference*> SizeDups;
 
+int treecount = 0;
+char **scantrees = NULL;
+
 void ScanDirectory(const char *basepath, int bplen, const char *name);
 void DeepCompare(FileReference *first);
 
@@ -32,6 +35,31 @@ int main(int argc, char **argv)
 	{
 		printf("Usage: %s <directory>\n", argv[0]);
 		return EXIT_FAILURE;
+	}
+	
+	{
+		char cwd[PATH_MAX];
+		char tmp[PATH_MAX];
+		if (!getcwd(cwd, PATH_MAX))
+		{
+			printf("Unable to get current directory: %s\n", strerror(errno));
+			return EXIT_FAILURE;
+		}
+		
+		treecount = argc - 1;
+		scantrees = new char*[treecount];
+		for (int i = 1; i < argc; i++)
+		{
+			if (argv[i][0] != '/')
+			{
+				PathMerge(tmp, PATH_MAX, cwd, argv[i]);
+				int len = strlen(tmp) + 1;
+				scantrees[i - 1] = new char[len];
+				PathResolve(scantrees[i - 1], len, tmp);
+			}
+			else
+				scantrees[i - 1] = argv[i];
+		}
 	}
 	
 	/* Initial scan - this step will recurse through the directory tree(s)
@@ -92,10 +120,68 @@ void ScanDirectory(const char *basepath, int bplen, const char *name)
 		if (de->d_name[0] == '.' && (!de->d_name[1] || (de->d_name[1] == '.' && !de->d_name[2])))
 			continue;
 		
-		if (fstatat(dfd, de->d_name, &st, 0) < 0)
+		if (fstatat(dfd, de->d_name, &st, AT_SYMLINK_NOFOLLOW) < 0)
 		{
 			printf("stat failure (%s%s): %s\n", path, de->d_name, strerror(errno));
 			continue;
+		}
+		
+ process_dir_item:
+		if (S_ISLNK(st.st_mode))
+		{
+			/* We need to check if this link leads to a path under any tree we're scanning,
+			 * to prevent false results (the same file/files would show twice) and link
+			 * recusion. This gets complicated because links may be relative to the 
+			 * directory they are in - so, we have to get the link, make it absolute, and 
+			 * clean any special segments (.., etc) out for it to be safely compared to
+			 * our paths.
+			 */
+			char lbuf[PATH_MAX + 1];
+			char clbuf[PATH_MAX + 1];
+			
+			int lblen = readlinkat(dfd, de->d_name, lbuf, PATH_MAX);
+			if (lblen <= 0)
+			{
+				printf("readlink failure (%s%s): %s\n", path, de->d_name, strerror(errno));
+				continue;
+			}
+			lbuf[lblen] = 0;
+			
+			if (lbuf[0] != '/')
+			{
+				// Relative path, prepend this directory
+				memmove(lbuf + pathlen, lbuf, lblen + 1);
+				memcpy(lbuf, path, pathlen);
+				lblen += pathlen;
+			}
+			
+			if (!PathResolve(clbuf, PATH_MAX + 1, lbuf))
+			{
+				printf("readlink failure(%s%s): invalid path\n", path, de->d_name);
+				continue;
+			}
+			
+			int i;
+			for (i = 0; i < treecount; i++)
+			{
+				int len = strlen(scantrees[i]);
+				if (scantrees[i][len - 1] == '/')
+					len--;
+				
+				if (strncmp(scantrees[i], clbuf, (len < lblen) ? len : lblen) == 0)
+					break;
+			}
+			
+			if (i < treecount)
+				continue;
+			
+			if (lstat(clbuf, &st) < 0)
+			{
+				printf("stat failure (%s): %s\n", clbuf, strerror(errno));
+				continue;
+			}
+			
+			goto process_dir_item;
 		}
 		
 		if (S_ISREG(st.st_mode))
