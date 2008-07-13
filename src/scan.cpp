@@ -6,15 +6,16 @@
 
 void ScanDirectory(const char *basepath, int bplen, const char *name)
 {
-	int pathlen = bplen + 1;
+	int pathlen = bplen;
 	if (name)
 		pathlen += strlen(name);
 	
-	char *path = new char[pathlen + 1];
+	char *path = new char[pathlen + 2];
 	strncpy(path, basepath, bplen);
 	if (name)
 		strcpy(path + bplen, name);
-	path[pathlen - 1] = '/';
+	if (path[pathlen - 1] != '/')
+		path[pathlen++] = '/';
 	path[pathlen] = 0;
 	
 	DIR *d = opendir(path);

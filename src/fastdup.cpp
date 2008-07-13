@@ -30,12 +30,22 @@ int main(int argc, char **argv)
 			if (argv[i][0] != '/')
 			{
 				PathMerge(tmp, PATH_MAX, cwd, argv[i]);
-				int len = strlen(tmp) + 1;
+				int len = strlen(tmp) + 2;
 				scantrees[i - 1] = new char[len];
 				PathResolve(scantrees[i - 1], len, tmp);
 			}
 			else
-				scantrees[i - 1] = argv[i];
+			{
+				int len = strlen(argv[i]);
+				scantrees[i - 1] = new char[len + 2];
+				PathResolve(scantrees[i - 1], len + 2, argv[i]);
+			}
+			
+			if (!DirectoryExists(scantrees[i - 1]))
+			{
+				printf("Error: %s does not exist or is not a directory\n", argv[i]);
+				return EXIT_FAILURE;
+			}
 		}
 	}
 	
@@ -46,8 +56,8 @@ int main(int argc, char **argv)
 	 * are what we select for the deep comparison, which is where the magic
 	 * really shows ;) */
 	printf("Scanning... this may take some time\n");
-	for (int i = 1; i < argc; i++)
-		ScanDirectory(argv[i], strlen(argv[i]), NULL);
+	for (int i = 0; i < treecount; i++)
+		ScanDirectory(scantrees[i], strlen(scantrees[i]), NULL);
 	
 	if (SizeMap.empty())
 	{
