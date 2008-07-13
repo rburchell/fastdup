@@ -19,6 +19,7 @@ struct FileReference
 
 extern std::map<off_t,FileReference*> SizeMap;
 extern std::vector<FileReference*> SizeDups;
+extern int DupeCount, DupeSetCount, FileCount;
 
 extern int treecount;
 extern char **scantrees;

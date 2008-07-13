@@ -2,6 +2,7 @@
 
 std::map<off_t,FileReference*> SizeMap;
 std::vector<FileReference*> SizeDups;
+int DupeCount = 0, DupeSetCount = 0, FileCount = 0;
 
 int treecount = 0;
 char **scantrees = NULL;
@@ -55,7 +56,8 @@ int main(int argc, char **argv)
 	 * with a list of files with the same sizes at the end. Those files
 	 * are what we select for the deep comparison, which is where the magic
 	 * really shows ;) */
-	printf("Scanning... this may take some time\n");
+	printf("Scanning for files...\n");
+	double starttm = SSTime();
 	for (int i = 0; i < treecount; i++)
 		ScanDirectory(scantrees[i], strlen(scantrees[i]), NULL);
 	
@@ -65,15 +67,17 @@ int main(int argc, char **argv)
 		return EXIT_SUCCESS;
 	}
 	
-	printf("\nInitial scanning complete on %d files\n", SizeMap.size());
-	printf("Running deep scan on %d sets of files\n\n", SizeDups.size());
-	
 	SizeMap.clear();
+	printf("Comparing %d set%s of files...\n\n", SizeDups.size(), (SizeDups.size() != 1) ? "s" : "");
 	
 	for (std::vector<FileReference*>::iterator it = SizeDups.begin(); it != SizeDups.end(); ++it)
 	{
 		DeepCompare(*it);
 	}
+	double endtm = SSTime();
+	
+	printf("Found %d duplicate%s of %d file%s. Scanned %d file%s in %.3f seconds.\n", DupeCount - DupeSetCount, (DupeCount - DupeSetCount != 1) ? "s" : "", DupeSetCount,
+		(DupeSetCount != 1) ? "s" : "", FileCount, (FileCount != 1) ? "s" : "", endtm - starttm);
 	
 	return EXIT_SUCCESS;
 }

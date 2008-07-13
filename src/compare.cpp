@@ -200,11 +200,14 @@ void DeepCompare(FileReference *first)
 			{
 				if (fm)
 				{
+					DupeSetCount++;
+					DupeCount++;
 					PathMerge(fnbuf, sizeof(fnbuf), frmap[i]->dir, frmap[i]->file);
 					printf("\t%s\n", fnbuf);
 					fm = false;
 				}
 				
+				DupeCount++;
 				PathMerge(fnbuf, sizeof(fnbuf), frmap[j]->dir, frmap[j]->file);
 				printf("\t%s\n", fnbuf);
 				

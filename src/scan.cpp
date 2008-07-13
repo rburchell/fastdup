@@ -103,6 +103,8 @@ void ScanDirectory(const char *basepath, int bplen, const char *name)
 			if (!st.st_size)
 				continue;
 			
+			FileCount++;
+			
 			FileReference *ref = new FileReference();
 			ref->dir = path;
 			// is reclen right?
