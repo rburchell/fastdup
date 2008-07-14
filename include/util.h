@@ -13,6 +13,8 @@ bool FileExists(const char *path);
 bool DirectoryExists(const char *path);
 std::string ByteSizes(off_t size);
 
+bool PromptChoice(const char *prompt, bool fallback);
+
 size_t strlcpy(char *dst, const char *src, size_t siz);
 size_t strlcat(char *dst, const char *src, size_t siz);
 

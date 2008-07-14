@@ -4,6 +4,7 @@
 std::map<off_t,FileReference*> SizeMap;
 std::vector<FileReference*> SizeDups;
 int DupeCount = 0, DupeSetCount = 0, FileCount = 0;
+bool FileErrors = false;
 bool Interactive = false;
 
 int treecount = 0;
@@ -91,6 +92,12 @@ int main(int argc, char **argv)
 	{
 		printf("\nNo files found!\n");
 		return EXIT_SUCCESS;
+	}
+	
+	if (FileErrors && Interactive)
+	{
+		if (!PromptChoice("\nUnable to scan some files. Do you want to continue [y/n]? ", false))
+			return EXIT_FAILURE;
 	}
 	
 	SizeMap.clear();

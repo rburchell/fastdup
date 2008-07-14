@@ -115,6 +115,22 @@ std::string ByteSizes(off_t size)
 	return b;
 }
 
+bool PromptChoice(const char *prompt, bool fallback)
+{
+	char rbuf[64];
+	for (;;)
+	{
+		fputs(prompt, stdout);
+		if (!fgets(rbuf, sizeof(rbuf), stdin))
+			return fallback;
+		
+		if (rbuf[0] == 'y')
+			return true;
+		else if (rbuf[0] == 'n')
+			return false;
+	}
+}
+
 /* strlcpy and strlcat:
  * Copyright (c) 1998 Todd C. Miller <Todd.Miller@courtesan.com>
  *

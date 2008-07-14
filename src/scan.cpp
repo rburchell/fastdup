@@ -23,6 +23,7 @@ void ScanDirectory(const char *basepath, int bplen, const char *name)
 	{
 		printf("opendir error (%s): %s\n", path, strerror(errno));
 		delete []path;
+		FileErrors = true;
 		return;
 	}
 	
@@ -37,6 +38,7 @@ void ScanDirectory(const char *basepath, int bplen, const char *name)
 		if (fstatat(dfd, de->d_name, &st, AT_SYMLINK_NOFOLLOW) < 0)
 		{
 			printf("stat failure (%s%s): %s\n", path, de->d_name, strerror(errno));
+			FileErrors = true;
 			continue;
 		}
 		
@@ -57,6 +59,7 @@ void ScanDirectory(const char *basepath, int bplen, const char *name)
 			if (lblen <= 0)
 			{
 				printf("readlink failure (%s%s): %s\n", path, de->d_name, strerror(errno));
+				FileErrors = true;
 				continue;
 			}
 			lbuf[lblen] = 0;
@@ -72,6 +75,7 @@ void ScanDirectory(const char *basepath, int bplen, const char *name)
 			if (!PathResolve(clbuf, PATH_MAX + 1, lbuf))
 			{
 				printf("readlink failure(%s%s): invalid path\n", path, de->d_name);
+				FileErrors = true;
 				continue;
 			}
 			
@@ -92,6 +96,7 @@ void ScanDirectory(const char *basepath, int bplen, const char *name)
 			if (lstat(clbuf, &st) < 0)
 			{
 				printf("stat failure (%s): %s\n", clbuf, strerror(errno));
+				FileErrors = true;
 				continue;
 			}
 			
@@ -138,5 +143,3 @@ void ScanDirectory(const char *basepath, int bplen, const char *name)
 	
 	closedir(d);
 }
-
-
