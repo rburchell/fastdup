@@ -38,20 +38,51 @@ void DeepCompare(FileReference *first)
 	for (FileReference *p = first; p; p = p->next)
 		++fcount;
 	
-	// FDs
+	/* FDs */
 	int ffd[fcount];
-	// File reference map, used afterwards to map back to the real file
+	/* File reference map, used afterwards to map back to the real file */
 	FileReference *frmap[fcount];
-	// Data buffers
+	/* Data buffers */
 	char *rrdbuf = new char[fcount * 65535];
 	char *rdbuf[fcount];
 	ssize_t rdbp = 0;
-	// Matchflag is true for each file pair that may still match
+	/* Matchflag is 1 for each file pair that may still match, 0
+	 * for pairs that cannot match, or 2 indicating that the current
+	 * block of both files is known to match (which will be reset
+	 * to 1 before the next block).
+	 *
+	 * To save space, a somewhat complex equation is used to calculate
+	 * the positions of the flag for a given pair of files (i and j).
+	 * The result of this equation is to map them so that, if there are
+	 * 3 files total, [0] is 0 & 1, [1] is 0 & 2, [2] is 1 & 2, and
+	 * no space is wasted.
+	 *
+	 * To calculate the position for files i and j with a maximum of f
+	 * files, assuming that j > i, use:
+	 *     int(((f-1)*i)-(i*(i/2.0-0.5))+(j-i)-1);
+	 */
 	char matchflag[(fcount*(fcount-1))/2];
+	/* Holds the result for the matching of the current file (i) against
+	 * all other TESTED files, by the index of the second file (j). Note
+	 * that many parts of this may be left untouched due to other
+	 * optimizations preventing a comparison. Use only when that
+	 * information is known. Values are identical to the return of
+	 * memcmp; -1 for i < j, 0 for i == j, 1 for i > j.
+	 *
+	 * Used to avoid comparisons by finding when two other files cannot
+	 * match this block, or must match this block (i.e. i > j and i < k,
+	 * or i == j and i == k).
+	 */
 	int mresult[fcount];
-	// Omit is true for files that have no possible matches left
+	/* Omit is true for files that have no possible matches left. These
+	 * are not read or processed at all. */
 	bool omit[fcount];
+	/* Number of files omitted; used to end early if we run out of possible
+	 * matches */
 	int omitted = 0;
+	/* Used to calculate omit, by keeping track of the number of comparisons
+	 * with other files that have been skipped against this file. When this
+	 * reaches fcount for a given file index, that file may be omitted. */
 	int skipcount[fcount];
 	
 	memset(matchflag, 1, sizeof(matchflag));
