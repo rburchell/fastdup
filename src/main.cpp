@@ -101,7 +101,7 @@ int main(int argc, char **argv)
 	}
 	
 	SizeMap.clear();
-	printf("Comparing %d set%s of files...\n\n", SizeDups.size(), (SizeDups.size() != 1) ? "s" : "");
+	printf("Comparing %lu set%s of files...\n\n", SizeDups.size(), (SizeDups.size() != 1) ? "s" : "");
 	
 	for (std::vector<FileReference*>::iterator it = SizeDups.begin(); it != SizeDups.end(); ++it)
 	{
