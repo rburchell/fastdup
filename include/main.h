@@ -1,6 +1,8 @@
 #ifndef MAIN_H
 #define MAIN_H
 
+#define FASTDUP_VERSION "0.1"
+
 #include <cstdio>
 #include <cstring>
 #include <cerrno>

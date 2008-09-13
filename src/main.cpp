@@ -11,12 +11,14 @@ bool Interactive = false;
 int treecount = 0;
 char **scantrees = NULL;
 
-bool ReadOptions(int argc, char **argv)
+static void ShowHelp(const char *bin);
+
+static bool ReadOptions(int argc, char **argv)
 {
 	Interactive = isatty(fileno(stdout));
 	
 	char opt;
-	while ((opt = getopt(argc, argv, "ib")) >= 0)
+	while ((opt = getopt(argc, argv, "ibh")) >= 0)
 	{
 		switch (opt)
 		{
@@ -26,14 +28,16 @@ bool ReadOptions(int argc, char **argv)
 			case 'b':
 				Interactive = false;
 				break;
+			case 'h':
 			default:
+				ShowHelp(argv[0]);
 				return false;
 		}
 	}
 	
 	if (optind >= argc)
 	{
-		printf("Usage: %s [options] directory [directory..]\n", argv[0]);
+		ShowHelp(argv[0]);
 		return false;
 	}
 	
@@ -114,4 +118,17 @@ int main(int argc, char **argv)
 	printf("Scanned %sB in %d file%s in %.3f seconds\n", ByteSizes(ScannedSize).c_str(), FileCount, (FileCount != 1) ? "s" : "", endtm - starttm);
 	
 	return EXIT_SUCCESS;
+}
+
+static void ShowHelp(const char *bin)
+{
+	printf(
+		"fastdup " FASTDUP_VERSION " - http://dev.dereferenced.net/fastdup/\n\n"
+		"Usage: %s [options] directory [directory..]\n"
+		"Options:\n"
+		"    -i                          Enable interactive prompts (default on terminals)\n"
+		"    -b                          Disable interactive prompts (batch mode)\n"
+		"    -h                          Show help and options\n"
+		"\n", bin
+	);
 }
