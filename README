@@ -1,0 +1,50 @@
+FastDup 0.1 - http://dev.dereferenced.net/fastdup/
+
+-- INTRODUCTION --
+
+FastDup is a tool to find copies of the same file within directory tree(s), designed
+for maximum speed and efficiency unlike most similar tools. Where many similar tools
+rely on checksums or hashes of files, or simple comparisons, fastdup uses a number
+of cleverly optimized tricks to reduce the number of actual comparisons necessary,
+and as a result can scan large sets of data extremely quickly compared to
+alternatives.
+
+-- INSTALLATION --
+
+make
+make install
+
+-- NOTES --
+
+FastDup will currently only work on modern Linux platforms with GNU make.
+Support for BSD-style operating systems is expected soon. Please report build
+problems (on non-BSD systems), bugs, or ideas at:
+
+            http://dev.dereferenced.net/projects/fastdup/issues
+
+FastDup *may* exhibit high memory usage on data sets with large numbers of
+potentially identical files. Changes on this front are expected in the future, to
+allow a good tradeoff between memory and performance and support extremely high
+numbers of possible matches.
+
+-- TECHNICAL NOTES --
+
+Source code is currently very ugly in places, because most of this was originally
+written as an experiment. This is expected to change within the next few releases.
+
+The method of comparing files falls in two steps; scanning and comparison.
+Scanning is a simple(ish) walk of directory trees searching out files and indexing
+them by their filesize. Multiple files with the same size are selected for detailed
+comparison. Special efforts are taken to properly handle symbolic links and other
+strange situations.
+
+Comparison is, at the core, simple byte-by-byte comparison of files in blocks, but
+there are many tricks and optimizations to reduce this from O(n^n) comparisons.
+The exact and numerous methods used are too extensive to list here (see compare.cpp),
+and are always open to improvement. This method is used in favor of checksums or
+hashes to make non-matching files less expensive; these are usually eliminated
+almost immediately. The most time consuming comparisons are those on files that are
+identical, because the entire files must be compared.
+
+There are many planned changes to the method for reading from files and general
+memory usage.

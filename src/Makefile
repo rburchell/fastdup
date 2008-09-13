@@ -1,4 +1,4 @@
-FLAGS = -pipe -ggdb -O2 -Wall -D_FILE_OFFSET_BITS=64
+FLAGS = -pipe -g -O3 -Wall -D_FILE_OFFSET_BITS=64
 LDFLAGS = 
 FILES := $(wildcard *.cpp)
 OBJECTS := $(patsubst %.cpp,%.o,$(FILES))
