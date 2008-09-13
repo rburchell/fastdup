@@ -4,6 +4,7 @@
 std::map<off_t,FileReference*> SizeMap;
 std::vector<FileReference*> SizeDups;
 int DupeCount = 0, DupeSetCount = 0, FileCount = 0;
+off_t ScannedSize = 0;
 bool FileErrors = false;
 bool Interactive = false;
 
@@ -109,8 +110,8 @@ int main(int argc, char **argv)
 	}
 	double endtm = SSTime();
 	
-	printf("Found %d duplicate%s of %d file%s. Scanned %d file%s in %.3f seconds.\n", DupeCount - DupeSetCount, (DupeCount - DupeSetCount != 1) ? "s" : "", DupeSetCount,
-		(DupeSetCount != 1) ? "s" : "", FileCount, (FileCount != 1) ? "s" : "", endtm - starttm);
+	printf("Found %d duplicate%s of %d file%s\n", DupeCount - DupeSetCount, (DupeCount - DupeSetCount != 1) ? "s" : "", DupeSetCount, (DupeSetCount != 1) ? "s" : "");
+	printf("Scanned %sB in %d file%s in %.3f seconds\n", ByteSizes(ScannedSize).c_str(), FileCount, (FileCount != 1) ? "s" : "", endtm - starttm);
 	
 	return EXIT_SUCCESS;
 }

@@ -109,6 +109,7 @@ void ScanDirectory(const char *basepath, int bplen, const char *name)
 				continue;
 			
 			FileCount++;
+			ScannedSize += st.st_size;
 			
 			FileReference *ref = new FileReference();
 			ref->dir = path;

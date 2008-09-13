@@ -20,6 +20,7 @@ struct FileReference
 extern std::map<off_t,FileReference*> SizeMap;
 extern std::vector<FileReference*> SizeDups;
 extern int DupeCount, DupeSetCount, FileCount;
+extern off_t ScannedSize;
 extern bool FileErrors, Interactive;
 
 extern int treecount;
