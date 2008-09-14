@@ -143,8 +143,7 @@ void ScanDirectory(const char *basepath, int bplen, const char *name)
 			
 			FileReference *ref = new FileReference();
 			ref->dir = path;
-			// is reclen right?
-			ref->file = new char[de->d_reclen + 1];
+			ref->file = new char[strlen(de->d_name) + 1];
 			strcpy(ref->file, de->d_name);
 			ref->next = NULL;
 			
