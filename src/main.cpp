@@ -31,17 +31,15 @@
 #include "main.h"
 #include <getopt.h>
 
-std::map<off_t,FileReference*> SizeMap;
-std::vector<FileReference*> SizeDups;
-int DupeCount = 0, DupeSetCount = 0, FileCount = 0;
-off_t ScannedSize = 0;
-bool FileErrors = false;
 bool Interactive = false;
-
 int treecount = 0;
 char **scantrees = NULL;
 
+static bool FileErrors = false;
+
 static void ShowHelp(const char *bin);
+static void DuplicateSet(FileReference *files[], unsigned long fcount);
+static bool ScanTreeError(const char *path, const char *error);
 
 static bool ReadOptions(int argc, char **argv)
 {
@@ -112,6 +110,8 @@ int main(int argc, char **argv)
 	if (!ReadOptions(argc, argv))
 		return EXIT_FAILURE;
 	
+	FastDup dupi;
+	
 	/* Initial scan - this step will recurse through the directory tree(s)
 	 * and find each file we will be working with. These files are mapped
 	 * by their size as this process runs through, so we will be provided
@@ -121,9 +121,9 @@ int main(int argc, char **argv)
 	printf("Scanning for files...\n");
 	double starttm = SSTime();
 	for (int i = 0; i < treecount; i++)
-		ScanDirectory(scantrees[i], strlen(scantrees[i]), NULL);
+		dupi.AddDirectoryTree(scantrees[i], ScanTreeError);
 	
-	if (SizeMap.empty())
+	if (!dupi.FileCount)
 	{
 		printf("\nNo files found!\n");
 		return EXIT_SUCCESS;
@@ -135,19 +135,37 @@ int main(int argc, char **argv)
 			return EXIT_FAILURE;
 	}
 	
-	SizeMap.clear();
-	printf("Comparing %lu set%s of files...\n\n", SizeDups.size(), (SizeDups.size() != 1) ? "s" : "");
+	dupi.EndScanning();
+	printf("Comparing %lu set%s of files...\n\n", dupi.CandidateSetCount, (dupi.CandidateSetCount != 1) ? "s" : "");
 	
-	for (std::vector<FileReference*>::iterator it = SizeDups.begin(); it != SizeDups.end(); ++it)
-	{
-		DeepCompare(*it);
-	}
+	dupi.Run(DuplicateSet);
 	double endtm = SSTime();
 	
-	printf("Found %d duplicate%s of %d file%s\n", DupeCount - DupeSetCount, (DupeCount - DupeSetCount != 1) ? "s" : "", DupeSetCount, (DupeSetCount != 1) ? "s" : "");
-	printf("Scanned %sB in %d file%s in %.3f seconds\n", ByteSizes(ScannedSize).c_str(), FileCount, (FileCount != 1) ? "s" : "", endtm - starttm);
+	printf("Found %lu duplicate%s of %lu file%s\n", dupi.DupeFileCount - dupi.DupeSetCount, (dupi.DupeFileCount - dupi.DupeSetCount != 1) ? "s" : "", dupi.DupeSetCount,
+		(dupi.DupeSetCount != 1) ? "s" : "");
+	printf("Scanned %lu file%s (%sB) in %.3f seconds\n", dupi.FileCount, (dupi.FileCount != 1) ? "s" : "", ByteSizes(dupi.FileSizeTotal).c_str(), endtm - starttm);
 	
 	return EXIT_SUCCESS;
+}
+
+bool ScanTreeError(const char *path, const char *error)
+{
+	printf("Error (%s): %s\n", path, error);
+	FileErrors = true;
+	return true;
+}
+
+void DuplicateSet(FileReference *files[], unsigned long fcount)
+{
+	char fnbuf[PATH_MAX];
+	
+	for (unsigned long i = 0; i < fcount; ++i)
+	{
+		PathMerge(fnbuf, sizeof(fnbuf), files[i]->dir, files[i]->file);
+		printf("\t%s\n", fnbuf);
+	}
+	
+	printf("\n");
 }
 
 static void ShowHelp(const char *bin)
@@ -162,3 +180,4 @@ static void ShowHelp(const char *bin)
 		"\n", bin
 	);
 }
+

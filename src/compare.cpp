@@ -59,7 +59,7 @@
  * O(n^n) comparisons on the contents of every file - there are many
  * methods, some of which are quite intricate.
  */
-void DeepCompare(FileReference *first)
+void FastDup::Compare(FileReference *first, DupeSetCallback callback)
 {
 	// Buffer for quick creation of the file's full path
 	char fnbuf[PATH_MAX];
@@ -240,43 +240,39 @@ void DeepCompare(FileReference *first)
  endscan:
  	delete []rrdbuf;
  	
- 	if (omitted == fcount)
- 	{
- 		// No matches
- 		return;
- 	}
+ 	/* Cleanup and gather/process results */
+ 	
+ 	FileReference *re[fcount];
+ 	unsigned long relen = 0;
  	
 	for (i = 0; i < fcount; i++)
 	{
 		if (omit[i])
 			continue;
-		
 		close(ffd[i]);
 		
-		bool fm = true;
-		
+		relen = 0;
 		for (int j = i + 1; j < fcount; j++)
 		{
 			if (!omit[j] && matchflag[int(((fcount-1)*i)-(i*(i/2.0-0.5))+(j-i)-1)])
 			{
-				if (fm)
-				{
-					DupeSetCount++;
-					DupeCount++;
-					PathMerge(fnbuf, sizeof(fnbuf), frmap[i]->dir, frmap[i]->file);
-					printf("\t%s\n", fnbuf);
-					fm = false;
-				}
+				if (!relen)
+					re[relen++] = frmap[i];
+				re[relen++] = frmap[j];
 				
-				DupeCount++;
-				PathMerge(fnbuf, sizeof(fnbuf), frmap[j]->dir, frmap[j]->file);
-				printf("\t%s\n", fnbuf);
-				
+				/* Prevent this from showing up again in our results */
 				omit[j] = true;
 				close(ffd[j]);
 			}
 		}
 		
-		printf("\n");
+		if (relen)
+		{
+			DupeSetCount++;
+			DupeFileCount += relen;
+			callback(re, relen);
+		}
 	}
+	
+	return;
 }

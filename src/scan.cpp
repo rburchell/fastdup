@@ -34,7 +34,14 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-void ScanDirectory(const char *basepath, int bplen, const char *name)
+static char errbuf[1024];
+
+void FastDup::AddDirectoryTree(const char *path, ErrorCallback cberr)
+{
+	this->ScanDirectory(path, strlen(path), NULL, cberr);
+}
+
+void FastDup::ScanDirectory(const char *basepath, int bplen, const char *name, ErrorCallback cberror)
 {
 	int pathlen = bplen;
 	if (name)
@@ -51,9 +58,9 @@ void ScanDirectory(const char *basepath, int bplen, const char *name)
 	DIR *d = opendir(path);
 	if (!d)
 	{
-		printf("opendir error (%s): %s\n", path, strerror(errno));
+		snprintf(errbuf, sizeof(errbuf), "Unable to open directory: %s", strerror(errno));
+		cberror(path, errbuf);
 		delete []path;
-		FileErrors = true;
 		return;
 	}
 	
@@ -67,8 +74,8 @@ void ScanDirectory(const char *basepath, int bplen, const char *name)
 		
 		if (fstatat(dfd, de->d_name, &st, AT_SYMLINK_NOFOLLOW) < 0)
 		{
-			printf("stat failure (%s%s): %s\n", path, de->d_name, strerror(errno));
-			FileErrors = true;
+			snprintf(errbuf, sizeof(errbuf), "Unable to read file information: %s", strerror(errno));
+			cberror(PathMerge(path, de->d_name).c_str(), errbuf);
 			continue;
 		}
 		
@@ -88,8 +95,8 @@ void ScanDirectory(const char *basepath, int bplen, const char *name)
 			int lblen = readlinkat(dfd, de->d_name, lbuf, PATH_MAX);
 			if (lblen <= 0)
 			{
-				printf("readlink failure (%s%s): %s\n", path, de->d_name, strerror(errno));
-				FileErrors = true;
+				snprintf(errbuf, sizeof(errbuf), "Unable to read link information: %s", strerror(errno));
+				cberror(PathMerge(path, de->d_name).c_str(), errbuf);
 				continue;
 			}
 			lbuf[lblen] = 0;
@@ -104,8 +111,8 @@ void ScanDirectory(const char *basepath, int bplen, const char *name)
 			
 			if (!PathResolve(clbuf, PATH_MAX + 1, lbuf))
 			{
-				printf("readlink failure(%s%s): invalid path\n", path, de->d_name);
-				FileErrors = true;
+				snprintf(errbuf, sizeof(errbuf), "Unable to resolve invalid link path");
+				cberror(lbuf, errbuf);
 				continue;
 			}
 			
@@ -125,8 +132,8 @@ void ScanDirectory(const char *basepath, int bplen, const char *name)
 			
 			if (lstat(clbuf, &st) < 0)
 			{
-				printf("stat failure (%s): %s\n", clbuf, strerror(errno));
-				FileErrors = true;
+				snprintf(errbuf, sizeof(errbuf), "Unable to read file information for link destination: %s", strerror(errno));
+				cberror(clbuf, errbuf);
 				continue;
 			}
 			
@@ -139,7 +146,7 @@ void ScanDirectory(const char *basepath, int bplen, const char *name)
 				continue;
 			
 			FileCount++;
-			ScannedSize += st.st_size;
+			FileSizeTotal += st.st_size;
 			
 			FileReference *ref = new FileReference();
 			ref->dir = path;
@@ -147,15 +154,16 @@ void ScanDirectory(const char *basepath, int bplen, const char *name)
 			strcpy(ref->file, de->d_name);
 			ref->next = NULL;
 			
-			std::map<off_t,FileReference*>::iterator it = SizeMap.find(st.st_size);
-			if (it == SizeMap.end())
+			std::map<off_t,FileReference*>::iterator it = FileSizeRef.find(st.st_size);
+			if (it == FileSizeRef.end())
 			{
-				SizeMap.insert(std::make_pair(st.st_size, ref));
+				FileSizeRef.insert(std::make_pair(st.st_size, ref));
 			}
 			else if (!it->second->next)
 			{
 				it->second->next = ref;
-				SizeDups.push_back(it->second);
+				FileCandidates.push_back(it->second);
+				CandidateSetCount++;
 			}
 			else
 			{
@@ -167,9 +175,14 @@ void ScanDirectory(const char *basepath, int bplen, const char *name)
 		}
 		else if (S_ISDIR(st.st_mode))
 		{
-			ScanDirectory(path, pathlen, de->d_name);
+			this->ScanDirectory(path, pathlen, de->d_name, cberror);
 		}
 	}
 	
 	closedir(d);
+}
+
+void FastDup::EndScanning()
+{
+	FileSizeRef.clear();
 }

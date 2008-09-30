@@ -1,6 +1,3 @@
-#ifndef MAIN_H
-#define MAIN_H
-
 /* Copyright (c) 2008, John Brooks <special@dereferenced.net>
  * All rights reserved.
  *
@@ -31,29 +28,25 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define FASTDUP_VERSION "0.1"
+#include "main.h"
 
-#include <cstdio>
-#include <cstring>
-#include <cerrno>
-#include <unistd.h>
-#include <cstdlib>
-#include "util.h"
-#include <map>
-#include <vector>
-
-struct FileReference
+FastDup::FastDup()
+	: FileCount(0), CandidateSetCount(0), DupeFileCount(0), DupeSetCount(0), FileSizeTotal(0)
 {
-	const char *dir;
-	char *file;
-	FileReference *next;
-};
+}
 
-#include "fastdup.h"
+FastDup::~FastDup()
+{
+}
 
-extern bool Interactive;
-
-extern int treecount;
-extern char **scantrees;
-
-#endif
+unsigned long FastDup::Run(DupeSetCallback dupecb)
+{
+	DupeFileCount = DupeSetCount = 0;
+	
+	for (CandidateList::iterator i = FileCandidates.begin(); i != FileCandidates.end(); ++i)
+	{
+		this->Compare(*i, dupecb);
+	}
+	
+	return DupeSetCount;
+}
