@@ -39,8 +39,6 @@
 #include <unistd.h>
 #include <cstdlib>
 #include "util.h"
-#include <map>
-#include <vector>
 
 struct FileReference
 {

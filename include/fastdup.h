@@ -1,6 +1,9 @@
 #ifndef FASTDUP_H
 #define FASTDUP_H
 
+#include <map>
+#include <vector>
+
 class FastDup
 {
  public:

@@ -59,6 +59,7 @@
  * O(n^n) comparisons on the contents of every file - there are many
  * methods, some of which are quite intricate.
  */
+
 void FastDup::Compare(FileReference *first, DupeSetCallback callback)
 {
 	// Buffer for quick creation of the file's full path
@@ -92,6 +93,7 @@ void FastDup::Compare(FileReference *first, DupeSetCallback callback)
 	 *     int(((f-1)*i)-(i*(i/2.0-0.5))+(j-i)-1);
 	 */
 	char matchflag[(fcount*(fcount-1))/2];
+#define FLAGPOS(i,j) int(((fcount-1)*(i))-((i)*((i)/2.0-0.5))+((j)-(i))-1)
 	/* Holds the result for the matching of the current file (i) against
 	 * all other TESTED files, by the index of the second file (j). Note
 	 * that many parts of this may be left untouched due to other
@@ -170,7 +172,7 @@ void FastDup::Compare(FileReference *first, DupeSetCallback callback)
 				if (omit[j])
 					continue;
 				
-				int flagpos = int(((fcount-1)*i)-(i*(i/2.0-0.5))+(j-i)-1);
+				int flagpos = FLAGPOS(i, j);
 				if (!matchflag[flagpos])
 					continue;
 				else if (matchflag[flagpos] == 2)
@@ -186,7 +188,7 @@ void FastDup::Compare(FileReference *first, DupeSetCallback callback)
 					if (omit[k])
 						continue;
 					
-					int kflagpos = int(((fcount-1)*k)-(k*(k/2.0-0.5))+(j-k)-1);
+					int kflagpos = FLAGPOS(k, j);
 					if (!matchflag[kflagpos])
 						continue;
 					
@@ -254,7 +256,7 @@ void FastDup::Compare(FileReference *first, DupeSetCallback callback)
 		relen = 0;
 		for (int j = i + 1; j < fcount; j++)
 		{
-			if (!omit[j] && matchflag[int(((fcount-1)*i)-(i*(i/2.0-0.5))+(j-i)-1)])
+			if (!omit[j] && matchflag[FLAGPOS(i,j)])
 			{
 				if (!relen)
 					re[relen++] = frmap[i];
@@ -276,3 +278,4 @@ void FastDup::Compare(FileReference *first, DupeSetCallback callback)
 	
 	return;
 }
+#undef FLAGPOS
