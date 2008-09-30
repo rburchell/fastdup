@@ -133,6 +133,7 @@ void FastDup::Compare(FileReference *first, DupeSetCallback callback)
 		if ((ffd[i] = open(fnbuf, O_RDONLY)) < 0)
 		{
 			printf("Unable to open file '%s': %s\n", fnbuf, strerror(errno));
+			// Note: if handled in any other way, clean up open FDs and rrdbuf
 			exit(EXIT_FAILURE);
 		}
 	}
@@ -150,6 +151,7 @@ void FastDup::Compare(FileReference *first, DupeSetCallback callback)
 			if (rdbp < 0)
 			{
 				printf("%d: Read error: %s\n", i, strerror(errno));
+				// Note: if handled in any other way, cleanup
 				exit(EXIT_FAILURE);
 			}
 			else if (!rdbp)

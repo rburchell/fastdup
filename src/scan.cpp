@@ -184,5 +184,13 @@ void FastDup::ScanDirectory(const char *basepath, int bplen, const char *name, E
 
 void FastDup::EndScanning()
 {
+	for (SizeRefMap::iterator it = FileSizeRef.begin(); it != FileSizeRef.end(); ++it)
+	{
+		if (!it->second->next)
+		{
+			delete []it->second->file;
+			delete it->second;
+		}
+	}
 	FileSizeRef.clear();
 }
