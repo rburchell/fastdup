@@ -33,6 +33,8 @@
 
 #define FASTDUP_VERSION "0.1"
 
+#define _FILE_OFFSET_BITS 64
+
 #include <cstdio>
 #include <cstring>
 #include <cerrno>
