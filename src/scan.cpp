@@ -35,9 +35,11 @@
 #include <fcntl.h>
 
 static char errbuf[1024];
+static double scanstart = 0, lasttime = 0;
 
 void FastDup::AddDirectoryTree(const char *path, ErrorCallback cberr)
 {
+	scanstart = SSTime();
 	this->ScanDirectory(path, strlen(path), NULL, cberr);
 }
 
@@ -54,6 +56,17 @@ void FastDup::ScanDirectory(const char *basepath, int bplen, const char *name, E
 	if (path[pathlen - 1] != '/')
 		path[pathlen++] = '/';
 	path[pathlen] = 0;
+	
+	if (Interactive)
+	{
+		double now = SSTime();
+		if (now - lasttime >= 0.1)
+		{
+			printf("\E[u%lu files in %.3f seconds", FileCount, now - scanstart);
+			fflush(stdout);
+			lasttime = now;
+		}
+	}
 	
 	DIR *d = opendir(path);
 	if (!d)

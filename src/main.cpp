@@ -118,10 +118,21 @@ int main(int argc, char **argv)
 	 * with a list of files with the same sizes at the end. Those files
 	 * are what we select for the deep comparison, which is where the magic
 	 * really shows ;) */
-	printf("Scanning for files...\n");
+	if (Interactive)
+	{
+		printf("Scanning for files... \E[s");
+		fflush(stdout);
+	}
+	else
+		printf("Scanning for files...\n");
+	
 	double starttm = SSTime();
 	for (int i = 0; i < treecount; i++)
 		dupi.AddDirectoryTree(scantrees[i], ScanTreeError);
+	
+	double endtm = SSTime();
+	if (Interactive)
+		printf("\E[u%lu files in %.3f seconds\n", dupi.FileCount, endtm - starttm);
 	
 	if (!dupi.FileCount)
 	{
@@ -139,7 +150,7 @@ int main(int argc, char **argv)
 	printf("Comparing %lu set%s of files...\n\n", dupi.CandidateSetCount, (dupi.CandidateSetCount != 1) ? "s" : "");
 	
 	dupi.Run(DuplicateSet);
-	double endtm = SSTime();
+	endtm = SSTime();
 	
 	printf("Found %lu duplicate%s of %lu file%s\n", dupi.DupeFileCount - dupi.DupeSetCount, (dupi.DupeFileCount - dupi.DupeSetCount != 1) ? "s" : "", dupi.DupeSetCount,
 		(dupi.DupeSetCount != 1) ? "s" : "");
@@ -150,7 +161,10 @@ int main(int argc, char **argv)
 
 bool ScanTreeError(const char *path, const char *error)
 {
-	printf("Error (%s): %s\n", path, error);
+	if (Interactive)
+		fprintf(stderr, "\E[0GError (%s): %s\nScanning for files... \E[s", path, error);
+	else
+		fprintf(stderr, "Error (%s): %s\n", path, error);
 	FileErrors = true;
 	return true;
 }
