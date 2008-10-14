@@ -167,15 +167,14 @@ void FastDup::ScanDirectory(const char *basepath, int bplen, const char *name, E
 			strcpy(ref->file, de->d_name);
 			ref->next = NULL;
 			
-			std::map<off_t,FileReference*>::iterator it = FileSizeRef.find(st.st_size);
-			if (it == FileSizeRef.end())
+			std::map<off_t,FileReference*>::iterator it = FileSzMap.find(st.st_size);
+			if (it == FileSzMap.end())
 			{
-				FileSizeRef.insert(std::make_pair(st.st_size, ref));
+				FileSzMap.insert(std::make_pair(st.st_size, ref));
 			}
 			else if (!it->second->next)
 			{
 				it->second->next = ref;
-				FileCandidates.push_back(it->second);
 				CandidateSetCount++;
 			}
 			else
@@ -197,13 +196,21 @@ void FastDup::ScanDirectory(const char *basepath, int bplen, const char *name, E
 
 void FastDup::EndScanning()
 {
-	for (SizeRefMap::iterator it = FileSizeRef.begin(); it != FileSizeRef.end(); ++it)
+	/* This technique was created by the developers of InspIRCd 
+	 * (http://www.inspircd.org) to allow deleting items from a STL
+	 * container while iterating over it. It has been tested on many
+	 * STL implementations without flaw. */
+	for (SizeRefMap::iterator it = FileSzMap.begin(), safeit; it != FileSzMap.end();)
 	{
 		if (!it->second->next)
 		{
-			delete []it->second->file;
-			delete it->second;
+			safeit = it;
+			++it;
+			delete []safeit->second->file;
+			delete safeit->second;
+			FileSzMap.erase(safeit);
 		}
+		else
+			++it;
 	}
-	FileSizeRef.clear();
 }

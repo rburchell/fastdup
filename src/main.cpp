@@ -36,9 +36,10 @@ int treecount = 0;
 char **scantrees = NULL;
 
 static bool FileErrors = false;
+static off_t FileSzWasted = 0;
 
 static void ShowHelp(const char *bin);
-static void DuplicateSet(FileReference *files[], unsigned long fcount);
+static void DuplicateSet(FileReference *files[], unsigned long fcount, off_t filesize);
 static bool ScanTreeError(const char *path, const char *error);
 
 static bool ReadOptions(int argc, char **argv)
@@ -152,8 +153,8 @@ int main(int argc, char **argv)
 	dupi.Run(DuplicateSet);
 	endtm = SSTime();
 	
-	printf("Found %lu duplicate%s of %lu file%s\n", dupi.DupeFileCount - dupi.DupeSetCount, (dupi.DupeFileCount - dupi.DupeSetCount != 1) ? "s" : "", dupi.DupeSetCount,
-		(dupi.DupeSetCount != 1) ? "s" : "");
+	printf("Found %lu duplicate%s of %lu file%s (%sB wasted)\n", dupi.DupeFileCount - dupi.DupeSetCount, (dupi.DupeFileCount - dupi.DupeSetCount != 1) ? "s" : "", dupi.DupeSetCount,
+		(dupi.DupeSetCount != 1) ? "s" : "", ByteSizes(FileSzWasted).c_str());
 	printf("Scanned %lu file%s (%sB) in %.3f seconds\n", dupi.FileCount, (dupi.FileCount != 1) ? "s" : "", ByteSizes(dupi.FileSizeTotal).c_str(), endtm - starttm);
 	
 	return EXIT_SUCCESS;
@@ -169,10 +170,13 @@ bool ScanTreeError(const char *path, const char *error)
 	return true;
 }
 
-void DuplicateSet(FileReference *files[], unsigned long fcount)
+void DuplicateSet(FileReference *files[], unsigned long fcount, off_t filesize)
 {
 	char fnbuf[PATH_MAX];
 	
+	FileSzWasted += filesize * (fcount-1);
+	
+	printf("%lu files (%sB/ea)\n", fcount, ByteSizes(filesize).c_str());
 	for (unsigned long i = 0; i < fcount; ++i)
 	{
 		PathMerge(fnbuf, sizeof(fnbuf), files[i]->dir, files[i]->file);

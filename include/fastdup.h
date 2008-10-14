@@ -2,25 +2,22 @@
 #define FASTDUP_H
 
 #include <map>
-#include <vector>
 
 class FastDup
 {
  public:
-	typedef void (*DupeSetCallback)(FileReference *files[], unsigned long count);
+	typedef void (*DupeSetCallback)(FileReference *files[], unsigned long count, off_t filesize);
 	typedef bool (*ErrorCallback)(const char *file, const char *error);
 	
  private:
 	typedef std::map<off_t,FileReference*> SizeRefMap;
-	typedef std::vector<FileReference*> CandidateList;
 	
-	SizeRefMap FileSizeRef;
-	CandidateList FileCandidates;
+	SizeRefMap FileSzMap;
 	
 	/* scan.cpp */
 	void ScanDirectory(const char *basepath, int bplen, const char *name, ErrorCallback cberr);
 	/* compare.cpp */
-	void Compare(FileReference *first, DupeSetCallback callback);
+	void Compare(FileReference *first, off_t filesize, DupeSetCallback callback);
 	
  public:
 	unsigned long FileCount, CandidateSetCount, DupeFileCount, DupeSetCount;

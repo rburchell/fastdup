@@ -43,9 +43,9 @@ unsigned long FastDup::Run(DupeSetCallback dupecb)
 {
 	DupeFileCount = DupeSetCount = 0;
 	
-	for (CandidateList::iterator i = FileCandidates.begin(); i != FileCandidates.end(); ++i)
+	for (SizeRefMap::iterator i = FileSzMap.begin(); i != FileSzMap.end(); ++i)
 	{
-		this->Compare(*i, dupecb);
+		this->Compare(i->second, i->first, dupecb);
 	}
 	
 	return DupeSetCount;

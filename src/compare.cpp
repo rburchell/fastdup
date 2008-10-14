@@ -60,7 +60,7 @@
  * methods, some of which are quite intricate.
  */
 
-void FastDup::Compare(FileReference *first, DupeSetCallback callback)
+void FastDup::Compare(FileReference *first, off_t filesize, DupeSetCallback callback)
 {
 	// Buffer for quick creation of the file's full path
 	char fnbuf[PATH_MAX];
@@ -274,7 +274,7 @@ void FastDup::Compare(FileReference *first, DupeSetCallback callback)
 		{
 			DupeSetCount++;
 			DupeFileCount += relen;
-			callback(re, relen);
+			callback(re, relen, filesize);
 		}
 	}
 	
