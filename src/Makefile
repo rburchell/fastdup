@@ -1,3 +1,4 @@
+CCP = g++
 FLAGS = -pipe -g -O3 -Wall
 LDFLAGS = 
 FILES := $(wildcard *.cpp)
@@ -10,9 +11,9 @@ all: build
 
 build: $(OBJECTS)
 	@echo "LINK    $(BINARY)"
-	@g++ $(FLAGS) $(LDFLAGS) $(OBJECTS) -o $(BINDIR)$(BINARY)
+	@$(CCP) $(FLAGS) $(LDFLAGS) $(OBJECTS) -o $(BINDIR)$(BINARY)
 
 %.o: %.cpp $(INCLUDES)
 	@echo "COMPILE $<"
-	@g++ $(FLAGS) -I../include/ -c $< -o $@
+	@$(CCP) $(FLAGS) -I../include/ -c $< -o $@
 
