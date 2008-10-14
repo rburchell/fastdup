@@ -28,6 +28,7 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "main.h"
 #include "util.h"
 #include <sys/stat.h>
 #include <sys/types.h>
