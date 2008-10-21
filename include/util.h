@@ -29,6 +29,7 @@ size_t PathResolve(char *buf, size_t bufsz, const char *path);
 bool FileExists(const char *path);
 bool DirectoryExists(const char *path);
 std::string ByteSizes(off_t size);
+off_t ParseHumanSize(const char *in);
 
 bool PromptChoice(const char *prompt, bool fallback);
 

@@ -23,6 +23,13 @@
 class DirReference;
 class FileReference;
 
+struct DupOptions
+{
+	off_t sz_min, sz_max, sz_eq;
+	
+	DupOptions() : sz_min(0), sz_max(0), sz_eq(0) { }
+};
+
 class FastDup
 {
  public:
@@ -40,6 +47,8 @@ class FastDup
 	void Compare(FileReference *first, off_t filesize, DupeSetCallback callback);
 	
  public:
+	DupOptions opt;
+	
 	unsigned long FileCount, CandidateSetCount, DupeFileCount, DupeSetCount;
 	off_t FileSizeTotal;
 	

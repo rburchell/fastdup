@@ -29,12 +29,12 @@ static void ShowHelp(const char *bin);
 static void DuplicateSet(FileReference *files[], unsigned long fcount, off_t filesize);
 static bool ScanTreeError(const char *path, const char *error);
 
-static bool ReadOptions(int argc, char **argv)
+static bool ReadOptions(int argc, char **argv, DupOptions &dopt)
 {
 	Interactive = isatty(fileno(stdout));
 	
 	char opt;
-	while ((opt = getopt(argc, argv, "ibh")) >= 0)
+	while ((opt = getopt(argc, argv, "ibhc:")) >= 0)
 	{
 		switch (opt)
 		{
@@ -43,6 +43,16 @@ static bool ReadOptions(int argc, char **argv)
 				break;
 			case 'b':
 				Interactive = false;
+				break;
+			case 'c':
+				if ((*optarg == '>' || *optarg == '+') && (dopt.sz_min = ParseHumanSize(optarg+1)));
+				else if ((*optarg == '<' || *optarg == '-') && (dopt.sz_max = ParseHumanSize(optarg+1)));
+				else if ((*optarg == '=') && (dopt.sz_eq = ParseHumanSize(optarg+1)));
+				else
+				{
+					fprintf(stderr, "Error: Invalid argument '%s' to option -l\n", optarg);
+					return false;
+				}
 				break;
 			case 'h':
 			default:
@@ -95,10 +105,10 @@ static bool ReadOptions(int argc, char **argv)
 
 int main(int argc, char **argv)
 {
-	if (!ReadOptions(argc, argv))
-		return EXIT_FAILURE;
-	
 	FastDup dupi;
+	
+	if (!ReadOptions(argc, argv, dupi.opt))
+		return EXIT_FAILURE;
 	
 	/* Initial scan - this step will recurse through the directory tree(s)
 	 * and find each file we will be working with. These files are mapped
@@ -178,6 +188,8 @@ static void ShowHelp(const char *bin)
 		"fastdup " FASTDUP_VERSION " - http://dev.dereferenced.net/fastdup/\n\n"
 		"Usage: %s [options] directory [directory..]\n"
 		"Options:\n"
+		"    -c [+-=]1[gmkb]             File conditions; size is greater (+), less (-), or\n"
+		"                                    equal (=)\n"
 		"    -i                          Enable interactive prompts (default on terminals)\n"
 		"    -b                          Disable interactive prompts (batch mode)\n"
 		"    -h                          Show help and options\n"

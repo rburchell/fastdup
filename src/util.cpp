@@ -134,6 +134,44 @@ std::string ByteSizes(off_t size)
 	return b;
 }
 
+off_t ParseHumanSize(const char *in)
+{
+	off_t re = 0, v = 0;
+	
+	for (; *in; ++in)
+	{
+		if (*in == 'b' || *in == 'B')
+		{
+			re += v;
+			v = 0;
+		}
+		else if (*in == 'k' || *in == 'K')
+		{
+			re += v*1024;
+			v = 0;
+		}
+		else if (*in == 'm' || *in == 'M')
+		{
+			re += v*1048576;
+			v = 0;
+		}
+		else if (*in == 'g' || *in == 'G')
+		{
+			re += v*1073741824;
+			v = 0;
+		}
+		else if (*in >= '0' && *in <= '9')
+		{
+			v = (v*10)+((*in)-'0');
+		}
+		else
+			return 0;
+	}
+	
+	re += v;
+	return re;
+}
+
 bool PromptChoice(const char *prompt, bool fallback)
 {
 	char rbuf[64];

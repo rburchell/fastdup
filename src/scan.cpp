@@ -142,6 +142,13 @@ void FastDup::ScanDirectory(const char *basepath, int bplen, const char *name, E
 			if (!st.st_size)
 				continue;
 			
+			if (opt.sz_eq && (st.st_size != opt.sz_eq))
+				continue;
+			else if (opt.sz_min && (st.st_size < opt.sz_min))
+				continue;
+			else if (opt.sz_max && (st.st_size > opt.sz_max))
+				continue;
+			
 			FileCount++;
 			FileSizeTotal += st.st_size;
 			
