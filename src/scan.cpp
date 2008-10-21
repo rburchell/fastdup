@@ -36,6 +36,7 @@ void FastDup::ScanDirectory(const char *basepath, int bplen, const char *name, E
 	if (name)
 		pathlen += strlen(name);
 	
+	bool addedfile = false;
 	char *path = new char[pathlen + 2];
 	strncpy(path, basepath, bplen);
 	if (name)
@@ -147,6 +148,7 @@ void FastDup::ScanDirectory(const char *basepath, int bplen, const char *name, E
 			
 			FileCount++;
 			FileSizeTotal += st.st_size;
+			addedfile = true;
 			
 			FileReference *ref = new FileReference();
 			ref->dir = path;
@@ -179,6 +181,8 @@ void FastDup::ScanDirectory(const char *basepath, int bplen, const char *name, E
 	}
 	
 	closedir(d);
+	if (!addedfile)
+		delete []path;
 }
 
 void FastDup::EndScanning()
