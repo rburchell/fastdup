@@ -22,6 +22,7 @@
 #include <unistd.h>
 #include <stdexcept>
 
+/* There is probably a more efficient way to do this; research that. */
 bool stricompare(const std::string &s1, const std::string &s2)
 {
 	if (s1.length() != s2.length())

@@ -22,6 +22,7 @@
 #include <fcntl.h>
 
 static char errbuf[1024];
+/* Used for interactive display */
 static double scanstart = 0, lasttime = 0;
 
 void FastDup::AddDirectoryTree(const char *path, ErrorCallback cberr)
@@ -32,11 +33,16 @@ void FastDup::AddDirectoryTree(const char *path, ErrorCallback cberr)
 
 void FastDup::ScanDirectory(const char *basepath, int bplen, const char *name, ErrorCallback cberror)
 {
+	/* Calculate length of this path (basepath + name) */
 	int pathlen = bplen;
 	if (name)
 		pathlen += strlen(name);
 	
 	bool addedfile = false;
+	
+	/* Merge basepath and name to form the path of this directory.
+	 * This value is stored in FileReferences to avoid having to
+	 * allocate it once per file (wasteful of memory). */
 	char *path = new char[pathlen + 2];
 	strncpy(path, basepath, bplen);
 	if (name)
@@ -50,6 +56,7 @@ void FastDup::ScanDirectory(const char *basepath, int bplen, const char *name, E
 		double now = SSTime();
 		if (now - lasttime >= 0.1)
 		{
+			/* Restore saved position, then overwrite with the new information */
 			printf("\E[u%lu files in %.3f seconds", FileCount, now - scanstart);
 			fflush(stdout);
 			lasttime = now;
@@ -70,9 +77,11 @@ void FastDup::ScanDirectory(const char *basepath, int bplen, const char *name, E
 	int dfd = dirfd(d);
 	while ((de = readdir(d)) != NULL)
 	{
+		/* Eliminate . and .. */
 		if (de->d_name[0] == '.' && (!de->d_name[1] || (de->d_name[1] == '.' && !de->d_name[2])))
 			continue;
 		
+		/* fstatat() avoids lookups and permissions checks, since we already have a dirfd */
 		if (fstatat(dfd, de->d_name, &st, AT_SYMLINK_NOFOLLOW) < 0)
 		{
 			snprintf(errbuf, sizeof(errbuf), "Unable to read file information: %s", strerror(errno));
@@ -85,7 +94,7 @@ void FastDup::ScanDirectory(const char *basepath, int bplen, const char *name, E
 		{
 			/* We need to check if this link leads to a path under any tree we're scanning,
 			 * to prevent false results (the same file/files would show twice) and link
-			 * recusion. This gets complicated because links may be relative to the 
+			 * recursion. This gets complicated because links may be relative to the 
 			 * directory they are in - so, we have to get the link, make it absolute, and 
 			 * clean any special segments (.., etc) out for it to be safely compared to
 			 * our paths.
@@ -131,6 +140,7 @@ void FastDup::ScanDirectory(const char *basepath, int bplen, const char *name, E
 			if (i < treecount)
 				continue;
 			
+			/* Link resolved; stat the destination and reprocess with that */
 			if (lstat(clbuf, &st) < 0)
 			{
 				snprintf(errbuf, sizeof(errbuf), "Unable to read file information for link destination: %s", strerror(errno));
@@ -150,12 +160,15 @@ void FastDup::ScanDirectory(const char *basepath, int bplen, const char *name, E
 			FileSizeTotal += st.st_size;
 			addedfile = true;
 			
+			/* Create FileReference */
 			FileReference *ref = new FileReference();
 			ref->dir = path;
 			ref->file = new char[strlen(de->d_name) + 1];
 			strcpy(ref->file, de->d_name);
 			ref->next = NULL;
 			
+			/* Add FileReference to our list; if a file with this size is known,
+			 * the reference is appended to the linked list. */
 			std::map<off_t,FileReference*>::iterator it = FileSzMap.find(st.st_size);
 			if (it == FileSzMap.end())
 			{
