@@ -48,6 +48,8 @@ class FastDup
 	void EndScanning();
 	
 	unsigned long Run(DupeSetCallback dupecb);
+	
+	void Cleanup();
 };
 
 #endif

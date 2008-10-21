@@ -37,3 +37,20 @@ unsigned long FastDup::Run(DupeSetCallback dupecb)
 	
 	return DupeSetCount;
 }
+
+void FastDup::Cleanup()
+{
+	for (SizeRefMap::iterator it = FileSzMap.begin(); it != FileSzMap.end(); ++it)
+	{
+		for (FileReference *p = it->second, *np; p; p = np)
+		{
+			np = p->next;
+			delete []p->file;
+			delete p;
+		}
+	}
+	
+	FileSzMap.clear();
+	FileCount = CandidateSetCount = DupeFileCount = DupeSetCount = 0;
+	FileSizeTotal = 0;
+}

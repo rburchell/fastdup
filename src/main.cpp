@@ -144,6 +144,8 @@ int main(int argc, char **argv)
 		(dupi.DupeSetCount != 1) ? "s" : "", ByteSizes(FileSzWasted).c_str());
 	printf("Scanned %lu file%s (%sB) in %.3f seconds\n", dupi.FileCount, (dupi.FileCount != 1) ? "s" : "", ByteSizes(dupi.FileSizeTotal).c_str(), endtm - starttm);
 	
+	dupi.Cleanup();
+	
 	return EXIT_SUCCESS;
 }
 
