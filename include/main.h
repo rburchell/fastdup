@@ -28,14 +28,6 @@
 #include <unistd.h>
 #include <cstdlib>
 #include "util.h"
-
-struct FileReference
-{
-	const char *dir;
-	char *file;
-	FileReference *next;
-};
-
 #include "fastdup.h"
 
 extern bool Interactive;

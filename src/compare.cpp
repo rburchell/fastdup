@@ -49,9 +49,6 @@
 
 void FastDup::Compare(FileReference *first, off_t filesize, DupeSetCallback callback)
 {
-	// Buffer for quick creation of the file's full path
-	char fnbuf[PATH_MAX];
-	
 	int fcount = 0;
 	for (FileReference *p = first; p; p = p->next)
 		++fcount;
@@ -112,14 +109,13 @@ void FastDup::Compare(FileReference *first, off_t filesize, DupeSetCallback call
 	for (FileReference *p = first; p; p = p->next, ++i)
 	{
 		frmap[i] = p;
-		
-		PathMerge(fnbuf, sizeof(fnbuf), p->dir, p->file);
+		const char *fn = p->FullPath();
 		
 		rdbuf[i] = rrdbuf + (65535 * i);
 		
-		if ((ffd[i] = open(fnbuf, O_RDONLY)) < 0)
+		if ((ffd[i] = open(fn, O_RDONLY)) < 0)
 		{
-			printf("Unable to open file '%s': %s\n", fnbuf, strerror(errno));
+			printf("Unable to open file '%s': %s\n", fn, strerror(errno));
 			// Note: if handled in any other way, clean up open FDs and rrdbuf
 			exit(EXIT_FAILURE);
 		}

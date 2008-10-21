@@ -161,15 +161,12 @@ bool ScanTreeError(const char *path, const char *error)
 
 void DuplicateSet(FileReference *files[], unsigned long fcount, off_t filesize)
 {
-	char fnbuf[PATH_MAX];
-	
 	FileSzWasted += filesize * (fcount-1);
 	
 	printf("%lu files (%sB/ea)\n", fcount, ByteSizes(filesize).c_str());
 	for (unsigned long i = 0; i < fcount; ++i)
 	{
-		PathMerge(fnbuf, sizeof(fnbuf), files[i]->dir, files[i]->file);
-		printf("\t%s\n", fnbuf);
+		printf("\t%s\n", files[i]->FullPath());
 	}
 	
 	printf("\n");

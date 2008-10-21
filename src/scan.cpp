@@ -33,23 +33,9 @@ void FastDup::AddDirectoryTree(const char *path, ErrorCallback cberr)
 
 void FastDup::ScanDirectory(const char *basepath, int bplen, const char *name, ErrorCallback cberror)
 {
-	/* Calculate length of this path (basepath + name) */
-	int pathlen = bplen;
-	if (name)
-		pathlen += strlen(name);
-	
-	bool addedfile = false;
-	
-	/* Merge basepath and name to form the path of this directory.
-	 * This value is stored in FileReferences to avoid having to
-	 * allocate it once per file (wasteful of memory). */
-	char *path = new char[pathlen + 2];
-	strncpy(path, basepath, bplen);
-	if (name)
-		strcpy(path + bplen, name);
-	if (path[pathlen - 1] != '/')
-		path[pathlen++] = '/';
-	path[pathlen] = 0;
+	/* Used in FileReferences to save memory by only storing the path once */
+	DirReference *dirref = new DirReference(basepath, bplen, name);
+	int pathlen = strlen(dirref->path);
 	
 	if (Interactive)
 	{
@@ -63,12 +49,12 @@ void FastDup::ScanDirectory(const char *basepath, int bplen, const char *name, E
 		}
 	}
 	
-	DIR *d = opendir(path);
+	DIR *d = opendir(dirref->path);
 	if (!d)
 	{
 		snprintf(errbuf, sizeof(errbuf), "Unable to open directory: %s", strerror(errno));
-		cberror(path, errbuf);
-		delete []path;
+		cberror(dirref->path, errbuf);
+		delete dirref;
 		return;
 	}
 	
@@ -85,7 +71,7 @@ void FastDup::ScanDirectory(const char *basepath, int bplen, const char *name, E
 		if (fstatat(dfd, de->d_name, &st, AT_SYMLINK_NOFOLLOW) < 0)
 		{
 			snprintf(errbuf, sizeof(errbuf), "Unable to read file information: %s", strerror(errno));
-			cberror(PathMerge(path, de->d_name).c_str(), errbuf);
+			cberror(PathMerge(dirref->path, de->d_name).c_str(), errbuf);
 			continue;
 		}
 		
@@ -106,7 +92,7 @@ void FastDup::ScanDirectory(const char *basepath, int bplen, const char *name, E
 			if (lblen <= 0)
 			{
 				snprintf(errbuf, sizeof(errbuf), "Unable to read link information: %s", strerror(errno));
-				cberror(PathMerge(path, de->d_name).c_str(), errbuf);
+				cberror(PathMerge(dirref->path, de->d_name).c_str(), errbuf);
 				continue;
 			}
 			lbuf[lblen] = 0;
@@ -115,7 +101,7 @@ void FastDup::ScanDirectory(const char *basepath, int bplen, const char *name, E
 			{
 				// Relative path, prepend this directory
 				memmove(lbuf + pathlen, lbuf, lblen + 1);
-				memcpy(lbuf, path, pathlen);
+				memcpy(lbuf, dirref->path, pathlen);
 				lblen += pathlen;
 			}
 			
@@ -158,14 +144,9 @@ void FastDup::ScanDirectory(const char *basepath, int bplen, const char *name, E
 			
 			FileCount++;
 			FileSizeTotal += st.st_size;
-			addedfile = true;
 			
 			/* Create FileReference */
-			FileReference *ref = new FileReference();
-			ref->dir = path;
-			ref->file = new char[strlen(de->d_name) + 1];
-			strcpy(ref->file, de->d_name);
-			ref->next = NULL;
+			FileReference *ref = new FileReference(dirref, de->d_name);
 			
 			/* Add FileReference to our list; if a file with this size is known,
 			 * the reference is appended to the linked list. */
@@ -189,13 +170,13 @@ void FastDup::ScanDirectory(const char *basepath, int bplen, const char *name, E
 		}
 		else if (S_ISDIR(st.st_mode))
 		{
-			this->ScanDirectory(path, pathlen, de->d_name, cberror);
+			this->ScanDirectory(dirref->path, pathlen, de->d_name, cberror);
 		}
 	}
 	
 	closedir(d);
-	if (!addedfile)
-		delete []path;
+	if (!dirref->RefCount())
+		delete dirref;
 }
 
 void FastDup::EndScanning()
@@ -210,7 +191,6 @@ void FastDup::EndScanning()
 		{
 			safeit = it;
 			++it;
-			delete []safeit->second->file;
 			delete safeit->second;
 			FileSzMap.erase(safeit);
 		}

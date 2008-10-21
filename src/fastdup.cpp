@@ -45,7 +45,6 @@ void FastDup::Cleanup()
 		for (FileReference *p = it->second, *np; p; p = np)
 		{
 			np = p->next;
-			delete []p->file;
 			delete p;
 		}
 	}

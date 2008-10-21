@@ -20,6 +20,9 @@
 
 #include <map>
 
+class DirReference;
+class FileReference;
+
 class FastDup
 {
  public:
@@ -50,6 +53,104 @@ class FastDup
 	unsigned long Run(DupeSetCallback dupecb);
 	
 	void Cleanup();
+};
+
+class DirReference
+{
+ private:
+	unsigned refs;
+ public:
+	char *path;
+	
+	DirReference(char *v)
+		: refs(0), path(v)
+	{
+	}
+	
+	DirReference(const char *base, int baselen, const char *seg)
+		: refs(0)
+	{
+		if (!seg)
+		{
+			path = new char[baselen + 2];
+			memcpy(path, base, baselen + 1);
+			
+			if (path[baselen - 1] != '/')
+			{
+				path[baselen++] = '/';
+				path[baselen] = 0;
+			}
+		}
+		else
+		{
+			int len = baselen + strlen(seg);
+			path = new char[len + 3];
+			
+			PathMerge(path, len + 3, base, seg);
+			if (path[len - 1] != '/')
+			{
+				path[len++] = '/';
+				path[len] = 0;
+			}
+		}
+	}
+	
+	~DirReference()
+	{
+		if (path)
+			delete []path;
+	}
+	
+	void AddRef()
+	{
+		++refs;
+	}
+	
+	void RemoveRef()
+	{
+		if (--refs < 1)
+			delete this;
+	}
+	
+	unsigned RefCount()
+	{
+		return refs;
+	}
+};
+
+class FileReference
+{
+ private:
+	FileReference(const FileReference &r)
+	{
+	}
+ public:
+	DirReference *dir;
+	char *file;
+	FileReference *next;
+	
+	FileReference(DirReference *dr, const char *fn)
+		: dir(dr), next(NULL)
+	{
+		dir->AddRef();
+		
+		int len = strlen(fn);
+		file = new char[len + 1];
+		memcpy(file, fn, len + 1);
+	}
+	
+	~FileReference()
+	{
+		dir->RemoveRef();
+		delete []file;
+	}
+	
+	const char *FullPath()
+	{
+		static char fnbuf[PATH_MAX];
+		PathMerge(fnbuf, sizeof(fnbuf), dir->path, file);
+		return fnbuf;
+	}
 };
 
 #endif
