@@ -17,6 +17,7 @@
 
 #include "main.h"
 #include <getopt.h>
+#include <limits.h>
 
 bool Interactive = false;
 
