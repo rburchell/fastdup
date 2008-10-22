@@ -19,6 +19,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <math.h>
 
 /* Deep comparison is the clever technique upon which the entire
  * concept of fastdup is based.
@@ -47,18 +48,31 @@
  * methods, some of which are quite intricate.
  */
 
+#define BLOCKSIZE 65536
+
 void FastDup::Compare(FileReference *first, off_t filesize, DupeSetCallback callback)
 {
+	int blockcount = ceil(filesize / BLOCKSIZE);
+
 	int fcount = 0;
 	for (FileReference *p = first; p; p = p->next)
 		++fcount;
+	
+	bool progress = (Interactive && (filesize*fcount >= 3*1048576));
+	int ipint = 0;
+	if (progress)
+	{
+		ipint = ceil(blockcount/100);
+		printf("Comparing %d files... \E[s0%%", fcount);
+		fflush(stdout);
+	}
 	
 	/* FDs */
 	int ffd[fcount];
 	/* File reference map, used afterwards to map back to the real file */
 	FileReference *frmap[fcount];
 	/* Data buffers */
-	char *rrdbuf = new char[fcount * 65535];
+	char *rrdbuf = new char[fcount * BLOCKSIZE];
 	char *rdbuf[fcount];
 	ssize_t rdbp = 0;
 	/* Matchflag is 1 for each file pair that may still match, 0
@@ -111,7 +125,7 @@ void FastDup::Compare(FileReference *first, off_t filesize, DupeSetCallback call
 		frmap[i] = p;
 		const char *fn = p->FullPath();
 		
-		rdbuf[i] = rrdbuf + (65535 * i);
+		rdbuf[i] = rrdbuf + (BLOCKSIZE * i);
 		
 		if ((ffd[i] = open(fn, O_RDONLY)) < 0)
 		{
@@ -122,14 +136,22 @@ void FastDup::Compare(FileReference *first, off_t filesize, DupeSetCallback call
 	}
 	
 	// Loop over blocks of the files, which will be compared
-	for (;;)
+	int ti = 0;
+	for (int block = 0;; ++block)
 	{
+		if (progress && (++ti == ipint))
+		{
+			ti = 0;
+			fprintf(stdout, "\E[u%d%%", int((double(block+1)/blockcount)*100));
+			fflush(stdout);
+		}
+		
 		for (i = 0; i < fcount; i++)
 		{
 			if (omit[i])
 				continue;
 			
-			rdbp = read(ffd[i], rdbuf[i], 65535);
+			rdbp = read(ffd[i], rdbuf[i], BLOCKSIZE);
 			
 			if (rdbp < 0)
 			{
@@ -228,6 +250,9 @@ void FastDup::Compare(FileReference *first, off_t filesize, DupeSetCallback call
  	delete []rrdbuf;
  	
  	/* Cleanup and gather/process results */
+ 	
+ 	if (progress)
+ 		fputs("\E[0G\E[K", stdout);
  	
  	FileReference *re[fcount];
  	unsigned long relen = 0;
