@@ -52,7 +52,7 @@
 
 void FastDup::Compare(FileReference *first, off_t filesize, DupeSetCallback callback)
 {
-	int blockcount = ceil(filesize / BLOCKSIZE);
+	int blockcount = (int)ceil(filesize / BLOCKSIZE);
 
 	int fcount = 0;
 	for (FileReference *p = first; p; p = p->next)
@@ -62,7 +62,7 @@ void FastDup::Compare(FileReference *first, off_t filesize, DupeSetCallback call
 	int ipint = 0;
 	if (progress)
 	{
-		ipint = ceil(blockcount/100);
+		ipint = (int)ceil(blockcount/100);
 		printf("Comparing %d files... \E[s0%%", fcount);
 		fflush(stdout);
 	}
