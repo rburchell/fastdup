@@ -21,6 +21,7 @@
 #include <map>
 #include <vector>
 #include <string>
+#include <limits.h>
 
 class DirReference;
 class FileReference;
