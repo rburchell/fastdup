@@ -62,7 +62,7 @@ void FastDup::Compare(FileReference *first, off_t filesize, DupeSetCallback call
 	int ipint = 0;
 	if (progress)
 	{
-		ipint = (int)ceil(blockcount/100);
+		ipint = (int)ceil(double(blockcount*fcount)/100);
 		printf("Comparing %d files... \E[s0%%", fcount);
 		fflush(stdout);
 	}
@@ -139,19 +139,19 @@ void FastDup::Compare(FileReference *first, off_t filesize, DupeSetCallback call
 	int ti = 0;
 	for (int block = 0;; ++block)
 	{
-		if (progress && (++ti == ipint))
-		{
-			ti = 0;
-			fprintf(stdout, "\E[u%d%%", int((double(block+1)/blockcount)*100));
-			fflush(stdout);
-		}
-		
 		for (i = 0; i < fcount; i++)
 		{
 			if (omit[i])
 				continue;
 			
 			rdbp = read(ffd[i], rdbuf[i], BLOCKSIZE);
+
+			if (progress && (++ti == ipint))
+			{
+				ti = 0;
+				fprintf(stdout, "\E[u%d%%", int((double((block+1)*(i+1))/(blockcount*fcount))*100));
+				fflush(stdout);
+			}
 			
 			if (rdbp < 0)
 			{
