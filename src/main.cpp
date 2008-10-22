@@ -19,8 +19,6 @@
 #include <getopt.h>
 
 bool Interactive = false;
-int treecount = 0;
-char **scantrees = NULL;
 
 static bool FileErrors = false;
 static off_t FileSzWasted = 0;
@@ -29,7 +27,7 @@ static void ShowHelp(const char *bin);
 static void DuplicateSet(FileReference *files[], unsigned long fcount, off_t filesize);
 static bool ScanTreeError(const char *path, const char *error);
 
-static bool ReadOptions(int argc, char **argv, DupOptions &dopt)
+static int ReadOptions(int argc, char **argv, DupOptions &dopt)
 {
 	Interactive = isatty(fileno(stdout));
 	
@@ -51,64 +49,34 @@ static bool ReadOptions(int argc, char **argv, DupOptions &dopt)
 				else
 				{
 					fprintf(stderr, "Error: Invalid argument '%s' to option -l\n", optarg);
-					return false;
+					exit(EXIT_FAILURE);
 				}
 				break;
 			case 'h':
 			default:
 				ShowHelp(argv[0]);
-				return false;
+				exit(EXIT_FAILURE);
+				break;
 		}
 	}
 	
 	if (optind >= argc)
 	{
 		ShowHelp(argv[0]);
-		return false;
+		exit(EXIT_FAILURE);
 	}
 	
-	char cwd[PATH_MAX];
-	char tmp[PATH_MAX];
-	if (!getcwd(cwd, PATH_MAX))
-	{
-		printf("Unable to get current directory: %s\n", strerror(errno));
-		return false;
-	}
-	
-	treecount = argc - optind;
-	scantrees = new char*[treecount];
-	for (int i = optind, j = 0; i < argc; i++, j++)
-	{
-		if (argv[i][0] != '/')
-		{
-			PathMerge(tmp, PATH_MAX, cwd, argv[i]);
-			int len = strlen(tmp) + 2;
-			scantrees[j] = new char[len];
-			PathResolve(scantrees[j], len, tmp);
-		}
-		else
-		{
-			int len = strlen(argv[i]);
-			scantrees[j] = new char[len + 2];
-			PathResolve(scantrees[j], len + 2, argv[i]);
-		}
-		
-		if (!DirectoryExists(scantrees[j]))
-		{
-			printf("Error: %s does not exist or is not a directory\n", argv[i]);
-			return false;
-		}
-	}
-	
-	return true;
+	return optind;
 }
 
 int main(int argc, char **argv)
 {
 	FastDup dupi;
 	
-	if (!ReadOptions(argc, argv, dupi.opt))
-		return EXIT_FAILURE;
+	int pi = ReadOptions(argc, argv, dupi.opt);
+	
+	for (int i = pi; i < argc; ++i)
+		dupi.AddDirectoryTree(argv[i]);
 	
 	/* Initial scan - this step will recurse through the directory tree(s)
 	 * and find each file we will be working with. These files are mapped
@@ -125,9 +93,7 @@ int main(int argc, char **argv)
 		printf("Scanning for files...\n");
 	
 	double starttm = SSTime();
-	for (int i = 0; i < treecount; i++)
-		dupi.AddDirectoryTree(scantrees[i], ScanTreeError);
-	
+	dupi.DoScanning(ScanTreeError);
 	double endtm = SSTime();
 	if (Interactive)
 		printf("\E[u%lu files in %.3f seconds\n", dupi.FileCount, endtm - starttm);
@@ -144,10 +110,9 @@ int main(int argc, char **argv)
 			return EXIT_FAILURE;
 	}
 	
-	dupi.EndScanning();
 	printf("Comparing %lu set%s of files...\n\n", dupi.CandidateSetCount, (dupi.CandidateSetCount != 1) ? "s" : "");
 	
-	dupi.Run(DuplicateSet);
+	dupi.DoCompare(DuplicateSet);
 	endtm = SSTime();
 	
 	printf("Found %lu duplicate%s of %lu file%s (%sB wasted)\n", dupi.DupeFileCount - dupi.DupeSetCount, (dupi.DupeFileCount - dupi.DupeSetCount != 1) ? "s" : "", dupi.DupeSetCount,

@@ -23,13 +23,7 @@
 
 static char errbuf[1024];
 /* Used for interactive display */
-static double scanstart = 0, lasttime = 0;
-
-void FastDup::AddDirectoryTree(const char *path, ErrorCallback cberr)
-{
-	scanstart = SSTime();
-	this->ScanDirectory(path, strlen(path), NULL, cberr);
-}
+double scanstart = 0, lasttime = 0;
 
 void FastDup::ScanDirectory(const char *basepath, int bplen, const char *name, ErrorCallback cberror)
 {
@@ -112,18 +106,19 @@ void FastDup::ScanDirectory(const char *basepath, int bplen, const char *name, E
 				continue;
 			}
 			
-			int i;
-			for (i = 0; i < treecount; i++)
+			/* If the destination of this link is within a path we will scan, don't follow it
+			 * to avoid false positives. */
+			bool invalid = false;
+			for (std::vector<std::string>::iterator it = DirList.begin(); it != DirList.end(); ++it)
 			{
-				int len = strlen(scantrees[i]);
-				if (scantrees[i][len - 1] == '/')
-					len--;
-				
-				if (strncmp(scantrees[i], clbuf, (len < lblen) ? len : lblen) == 0)
+				if (strncmp(it->c_str(), clbuf, ((*it)[it->length()-1] == '/') ? it->length()-1 : it->length()) == 0)
+				{
+					invalid = true;
 					break;
+				}
 			}
 			
-			if (i < treecount)
+			if (invalid)
 				continue;
 			
 			/* Link resolved; stat the destination and reprocess with that */
@@ -184,24 +179,4 @@ void FastDup::ScanDirectory(const char *basepath, int bplen, const char *name, E
 	closedir(d);
 	if (!dirref->RefCount())
 		delete dirref;
-}
-
-void FastDup::EndScanning()
-{
-	/* This technique was created by the developers of InspIRCd 
-	 * (http://www.inspircd.org) to allow deleting items from a STL
-	 * container while iterating over it. It has been tested on many
-	 * STL implementations without flaw. */
-	for (SizeRefMap::iterator it = FileSzMap.begin(), safeit; it != FileSzMap.end();)
-	{
-		if (!it->second->next)
-		{
-			safeit = it;
-			++it;
-			delete safeit->second;
-			FileSzMap.erase(safeit);
-		}
-		else
-			++it;
-	}
 }

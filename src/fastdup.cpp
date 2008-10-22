@@ -17,6 +17,8 @@
 
 #include "main.h"
 
+extern double scanstart;
+
 FastDup::FastDup()
 	: FileCount(0), CandidateSetCount(0), DupeFileCount(0), DupeSetCount(0), FileSizeTotal(0)
 {
@@ -24,9 +26,57 @@ FastDup::FastDup()
 
 FastDup::~FastDup()
 {
+	this->Cleanup();
 }
 
-unsigned long FastDup::Run(DupeSetCallback dupecb)
+void FastDup::AddDirectoryTree(const char *path)
+{
+	std::string v = path;
+	char tmp[PATH_MAX+1];
+	
+	if (path[0] != '/')
+	{
+		char cwd[PATH_MAX + 1];
+		if (!getcwd(cwd, PATH_MAX + 1))
+			throw std::runtime_error("Unable to get current directory");
+		
+		v = PathMerge(cwd, v);
+	}
+	
+	PathResolve(tmp, sizeof(tmp), v.c_str());
+	
+	if (!DirectoryExists(tmp))
+		throw std::runtime_error("Path does not exist or is not a directory");
+	
+	DirList.push_back(tmp);
+}
+
+void FastDup::DoScanning(ErrorCallback errcb)
+{
+	scanstart = SSTime();
+	
+	for (std::vector<std::string>::iterator it = DirList.begin(); it != DirList.end(); ++it)
+		this->ScanDirectory(it->c_str(), it->length(), NULL, errcb);
+	
+	/* This technique was created by the developers of InspIRCd 
+	 * (http://www.inspircd.org) to allow deleting items from a STL
+	 * container while iterating over it. It has been tested on many
+	 * STL implementations without flaw. */
+	for (SizeRefMap::iterator it = FileSzMap.begin(), safeit; it != FileSzMap.end();)
+	{
+		if (!it->second->next)
+		{
+			safeit = it;
+			++it;
+			delete safeit->second;
+			FileSzMap.erase(safeit);
+		}
+		else
+			++it;
+	}
+}
+
+unsigned long FastDup::DoCompare(DupeSetCallback dupecb)
 {
 	DupeFileCount = DupeSetCount = 0;
 	

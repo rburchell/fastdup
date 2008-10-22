@@ -19,6 +19,8 @@
  */
 
 #include <map>
+#include <vector>
+#include <string>
 
 class DirReference;
 class FileReference;
@@ -40,6 +42,7 @@ class FastDup
 	typedef std::map<off_t,FileReference*> SizeRefMap;
 	
 	SizeRefMap FileSzMap;
+	std::vector<std::string> DirList;
 	
 	/* scan.cpp */
 	void ScanDirectory(const char *basepath, int bplen, const char *name, ErrorCallback cberr);
@@ -48,18 +51,16 @@ class FastDup
 	
  public:
 	DupOptions opt;
-	
 	unsigned long FileCount, CandidateSetCount, DupeFileCount, DupeSetCount;
 	off_t FileSizeTotal;
 	
 	FastDup();
 	~FastDup();
 	
-	/* scan.cpp */
-	void AddDirectoryTree(const char *path, ErrorCallback cberr);
-	void EndScanning();
-	
-	unsigned long Run(DupeSetCallback dupecb);
+	/* fastdup.cpp */
+	void AddDirectoryTree(const char *path);
+	void DoScanning(ErrorCallback errcb);
+	unsigned long DoCompare(DupeSetCallback dupecb);
 	
 	void Cleanup();
 };

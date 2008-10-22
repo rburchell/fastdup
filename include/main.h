@@ -27,12 +27,10 @@
 #include <cerrno>
 #include <unistd.h>
 #include <cstdlib>
+#include <stdexcept>
 #include "util.h"
 #include "fastdup.h"
 
 extern bool Interactive;
-
-extern int treecount;
-extern char **scantrees;
 
 #endif
