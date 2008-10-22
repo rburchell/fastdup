@@ -18,7 +18,7 @@
  * LICENSE file distributed with this program.
  */
 
-#define FASTDUP_VERSION "0.2"
+#define FASTDUP_VERSION "0.3"
 
 #define _FILE_OFFSET_BITS 64
 
