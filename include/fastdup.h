@@ -162,6 +162,14 @@ class FileReference
 		PathMerge(fnbuf, sizeof(fnbuf), dir->path, file);
 		return fnbuf;
 	}
+
+	/** Requests that this file be deleted.
+	 */
+	void Unlink()
+	{
+		std::cout << "Unlinking " << this->FullPath() << std::endl;
+       //     unlink(this->FullPath());
+	}
 };
 
 #endif

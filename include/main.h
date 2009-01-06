@@ -28,6 +28,7 @@
 #include <unistd.h>
 #include <cstdlib>
 #include <stdexcept>
+#include <iostream>
 #include "util.h"
 #include "fastdup.h"
 

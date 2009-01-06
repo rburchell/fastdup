@@ -142,7 +142,25 @@ void DuplicateSet(FileReference *files[], unsigned long fcount, off_t filesize)
 	printf("%lu files (%sB/ea)\n", fcount, ByteSizes(filesize).c_str());
 	for (unsigned long i = 0; i < fcount; ++i)
 	{
-		printf("\t%s\n", files[i]->FullPath());
+		if (Interactive)
+			printf("\t[%lu]\t%s\n", i, files[i]->FullPath());
+		else
+			printf("\t%s\n", files[i]->FullPath());
+	}
+
+	if (Interactive)
+	{
+		unsigned long fkeep = 0; // Which file to keep
+		printf("Which file to keep?\n");
+		std::cin >> fkeep;
+		std::cout << "Keeping " << fkeep << std::endl;
+		for (unsigned long i = 0; i < fcount; ++i)
+		{
+			if (i == fkeep)
+				continue;
+
+			files[i]->Unlink();
+		}
 	}
 	
 	printf("\n");
