@@ -30,7 +30,7 @@ FastDup will currently only work on modern Linux platforms with GNU make.
 Support for BSD-style operating systems is expected soon. Please report build
 problems (on non-BSD systems), bugs, or ideas at:
 
-            http://dev.dereferenced.net/projects/fastdup/issues
+            http://github.com/rburchell/fastdup/issues
 
 FastDup *may* exhibit high memory usage on data sets with large numbers of
 potentially identical files. Changes on this front are expected in the future, to
