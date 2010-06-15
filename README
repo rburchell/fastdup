@@ -1,4 +1,14 @@
-FastDup 0.3 - http://dev.dereferenced.net/fastdup/
+FastDup 0.3 - http://github.com/rburchell/fastdup
+
+-- CONTACT --
+
+For any patches/contributions, contact the current maintainer:
+ Robin Burchell <robin.burchell@collabora.co.uk>
+
+However:
+
+Most(/all) of the blood, sweat, and tears in FastDup - and all of the credit belongs to:
+ John Brooks <special@dereferenced.net>
 
 -- INTRODUCTION --
 
@@ -48,3 +58,4 @@ identical, because the entire files must be compared.
 
 There are many planned changes to the method for reading from files and general
 memory usage.
+
