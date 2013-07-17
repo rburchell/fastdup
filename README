@@ -1,13 +1,9 @@
-FastDup 0.3 - http://github.com/rburchell/fastdup
+FastDup - http://github.com/rburchell/fastdup
 
--- CONTACT --
+The current maintainer is:
+ Robin Burchell <robin+git@viroteck.net>
 
-For any patches/contributions, contact the current maintainer:
- Robin Burchell <robin.burchell@collabora.co.uk>
-
-However:
-
-Most(/all) of the blood, sweat, and tears in FastDup - and all of the credit belongs to:
+However, most(/all) of the blood, sweat, and tears in FastDup - and all of the credit belongs to:
  John Brooks <special@dereferenced.net>
 
 -- INTRODUCTION --
@@ -26,21 +22,16 @@ make install
 
 -- NOTES --
 
-FastDup will currently only work on modern Linux platforms with GNU make.
-Support for BSD-style operating systems is expected soon. Please report build
-problems (on non-BSD systems), bugs, or ideas at:
+FastDup will currently only work on OS X and modern Linux platforms with GNU make.
+
+Please report build problems (on non-BSD systems), bugs, or ideas at:
 
             http://github.com/rburchell/fastdup/issues
 
 FastDup *may* exhibit high memory usage on data sets with large numbers of
-potentially identical files. Changes on this front are expected in the future, to
-allow a good tradeoff between memory and performance and support extremely high
-numbers of possible matches.
+potentially identical files.
 
 -- TECHNICAL NOTES --
-
-Source code is currently very ugly in places, because most of this was originally
-written as an experiment. This is expected to change within the next few releases.
 
 The method of comparing files falls in two steps; scanning and comparison.
 Scanning is a simple(ish) walk of directory trees searching out files and indexing
