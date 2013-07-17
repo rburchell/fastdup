@@ -1,4 +1,5 @@
 /* FastDup (http://dev.dereferenced.net/fastdup/)
+ * Copyright 2013 - Robin Burchell <robin+git@viroteck.net>
  * Copyright 2008 - John Brooks <special@dereferenced.net>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -21,6 +22,11 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+#ifdef __APPLE__
+# define NO_FSTATAT
+# define NO_READLINKAT
+#endif
+
 static char errbuf[1024];
 /* Used for interactive display */
 double scanstart = 0, lasttime = 0;
@@ -42,7 +48,7 @@ void FastDup::ScanDirectory(const char *basepath, int bplen, const char *name, E
 			lasttime = now;
 		}
 	}
-	
+
 	DIR *d = opendir(dirref->path);
 	if (!d)
 	{
@@ -51,18 +57,43 @@ void FastDup::ScanDirectory(const char *basepath, int bplen, const char *name, E
 		delete dirref;
 		return;
 	}
-	
+
+#ifdef NO_FSTATAT
+	/* Lack of fstatat() requires us to actually change the working
+	 * directory (using fchdir) in order to stat a file.
+	 *
+	 * We look up the current working directory and return to it later to not
+	 * modify state.
+	 */
+	char returnpath[PATH_MAX + 1];
+	char *cwd = getcwd(returnpath, PATH_MAX);
+#endif
+
 	struct dirent *de;
 	struct stat st;
 	int dfd = dirfd(d);
+
+#ifdef NO_FSTATAT
+	if (fchdir(dfd) < 0)
+	{
+		snprintf(errbuf, sizeof(errbuf), "Unable to fchdir: %s", strerror(errno));
+		cberror(PathMerge(dirref->path, de->d_name).c_str(), errbuf);
+		return;
+	}
+#endif
+
 	while ((de = readdir(d)) != NULL)
 	{
 		/* Eliminate . and .. */
 		if (de->d_name[0] == '.' && (!de->d_name[1] || (de->d_name[1] == '.' && !de->d_name[2])))
 			continue;
 		
+#ifndef NO_FSTATAT
 		/* fstatat() avoids lookups and permissions checks, since we already have a dirfd */
 		if (fstatat(dfd, de->d_name, &st, AT_SYMLINK_NOFOLLOW) < 0)
+#else
+		if (lstat(de->d_name, &st) < 0)
+#endif
 		{
 			snprintf(errbuf, sizeof(errbuf), "Unable to read file information: %s", strerror(errno));
 			cberror(PathMerge(dirref->path, de->d_name).c_str(), errbuf);
@@ -81,8 +112,12 @@ void FastDup::ScanDirectory(const char *basepath, int bplen, const char *name, E
 			 */
 			char lbuf[PATH_MAX + 1];
 			char clbuf[PATH_MAX + 1];
-			
+
+#ifndef NO_READLINKAT
 			int lblen = readlinkat(dfd, de->d_name, lbuf, PATH_MAX);
+#else
+			int lblen = readlink(de->d_name, lbuf, PATH_MAX);
+#endif
 			if (lblen <= 0)
 			{
 				snprintf(errbuf, sizeof(errbuf), "Unable to read link information: %s", strerror(errno));
@@ -179,4 +214,7 @@ void FastDup::ScanDirectory(const char *basepath, int bplen, const char *name, E
 	closedir(d);
 	if (!dirref->RefCount())
 		delete dirref;
+#ifdef NO_FSTATAT
+	chdir(cwd);
+#endif
 }
