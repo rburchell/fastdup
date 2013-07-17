@@ -170,7 +170,7 @@ ask:
 		{
 			char *serr;
 			unsigned long fkeep = strtoul(str.c_str(), &serr, 10); // Which file to keep
-			if (*serr != '\0')
+			if (*serr != '\0' || fkeep >= fcount)
 			{
 				std::cerr << str << " is not valid input" << std::endl;
 				goto ask;
