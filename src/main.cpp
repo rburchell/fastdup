@@ -1,4 +1,5 @@
 /* FastDup (http://dev.dereferenced.net/fastdup/)
+ * Copyright 2013 - Robin Burchell <robin+git@viroteck.net>
  * Copyright 2008 - John Brooks <special@dereferenced.net>
  *
  * This program is free software: you can redistribute it and/or modify
@@ -140,6 +141,12 @@ void DuplicateSet(FileReference *files[], unsigned long fcount, off_t filesize)
 	FileSzWasted += filesize * (fcount-1);
 	
 	printf("%lu files (%sB/ea)\n", fcount, ByteSizes(filesize).c_str());
+
+	if (Interactive)
+	{
+		printf("\t<blank>\tAll\n");
+	}
+
 	for (unsigned long i = 0; i < fcount; ++i)
 	{
 		if (Interactive)
@@ -150,16 +157,33 @@ void DuplicateSet(FileReference *files[], unsigned long fcount, off_t filesize)
 
 	if (Interactive)
 	{
-		unsigned long fkeep = 0; // Which file to keep
+ask:
 		printf("Which file to keep?\n");
-		std::cin >> fkeep;
-		std::cout << "Keeping " << fkeep << std::endl;
-		for (unsigned long i = 0; i < fcount; ++i)
-		{
-			if (i == fkeep)
-				continue;
+		std::string str;
+		std::getline(std::cin, str);
 
-			files[i]->Unlink();
+		if (str.empty())
+		{
+			std::cout << "Keeping all" << std::endl;
+		}
+		else
+		{
+			char *serr;
+			unsigned long fkeep = strtoul(str.c_str(), &serr, 10); // Which file to keep
+			if (*serr != '\0')
+			{
+				std::cerr << str << " is not valid input" << std::endl;
+				goto ask;
+			}
+
+			std::cout << "Keeping " << fkeep << std::endl;
+			for (unsigned long i = 0; i < fcount; ++i)
+			{
+				if (i == fkeep)
+					continue;
+
+				files[i]->Unlink();
+			}
 		}
 	}
 	
